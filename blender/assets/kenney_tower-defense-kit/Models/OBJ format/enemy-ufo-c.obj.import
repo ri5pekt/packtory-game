@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://duafe677yd5p"
+path="res://.godot/imported/enemy-ufo-c.obj-8ffe548e741bd59447cc27a5765b8044.mesh"
+
+[deps]
+
+files=["res://.godot/imported/enemy-ufo-c.obj-8ffe548e741bd59447cc27a5765b8044.mesh"]
+
+source_file="res://blender/assets/kenney_tower-defense-kit/Models/OBJ format/enemy-ufo-c.obj"
+dest_files=["res://.godot/imported/enemy-ufo-c.obj-8ffe548e741bd59447cc27a5765b8044.mesh", "res://.godot/imported/enemy-ufo-c.obj-8ffe548e741bd59447cc27a5765b8044.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

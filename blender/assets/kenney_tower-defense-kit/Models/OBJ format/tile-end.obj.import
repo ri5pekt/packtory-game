@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://dyevm52a2qc1u"
+path="res://.godot/imported/tile-end.obj-ced1b7e922be42f6e6994eef40dcff5e.mesh"
+
+[deps]
+
+files=["res://.godot/imported/tile-end.obj-ced1b7e922be42f6e6994eef40dcff5e.mesh"]
+
+source_file="res://blender/assets/kenney_tower-defense-kit/Models/OBJ format/tile-end.obj"
+dest_files=["res://.godot/imported/tile-end.obj-ced1b7e922be42f6e6994eef40dcff5e.mesh", "res://.godot/imported/tile-end.obj-ced1b7e922be42f6e6994eef40dcff5e.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

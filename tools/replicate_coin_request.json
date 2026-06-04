@@ -1,0 +1,12 @@
+{
+  "input": {
+    "size": "2K",
+    "width": 512,
+    "height": 512,
+    "prompt": "Single game UI icon: a shiny golden coin for a cozy cartoon warehouse tycoon mobile game. Low-poly friendly, warm saturated colors, soft rounded shapes, subtle highlight and shadow, simple dollar sign embossed on the coin face. Isolated subject centered on a perfectly flat solid mint-green background (#9fd08a) with no gradients or shadows on the backdrop — we will remove the background in post. No text, no watermark, crisp edges suitable for a 64px HUD icon.",
+    "max_images": 1,
+    "image_input": [],
+    "aspect_ratio": "1:1",
+    "sequential_image_generation": "disabled"
+  }
+}

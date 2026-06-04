@@ -1,0 +1,73 @@
+{
+  "model": "bytedance/seedream-4.5",
+  "background": "#FF00FF",
+  "size": 1024,
+  "style_suffix": "Single isolated game UI icon for a cozy cartoon warehouse tycoon mobile game. Low-poly friendly, warm saturated colors, soft rounded 3D shapes, subtle shading. Centered subject on a plain solid light gray background (#E8E8E8). No text, no watermark, no rounded app-icon card frame, no floor shadow. Background will be removed automatically — keep the subject cleanly separated from the backdrop.",
+  "output_size": 128,
+  "icons": [
+    {
+      "id": "coin",
+      "prompt": "A shiny golden coin with a simple dollar sign embossed, tilted slightly in 3D"
+    },
+    {
+      "id": "go_here",
+      "prompt": "A pair of cartoon walking legs with sneakers mid-stride, side view, implying movement and go-to action"
+    },
+    {
+      "id": "take",
+      "prompt": "A cartoon hand reaching down to grab a small product box from a shelf, pick-up action icon"
+    },
+    {
+      "id": "put",
+      "prompt": "A cartoon hand placing a small box onto a warehouse shelf, stock or unload action icon with a downward arrow hint"
+    },
+    {
+      "id": "pickup",
+      "prompt": "A closed cardboard delivery crate with tape, lift and pick-up action icon"
+    },
+    {
+      "id": "take_order",
+      "prompt": "A clipboard with a checklist and a small sticky note, take customer order action icon"
+    },
+    {
+      "id": "order_list",
+      "prompt": "A simple cartoon clipboard checklist, light cream paper with a brown clip at the top and three short horizontal text lines each with a small green checkmark, flat front view, NO speech bubble, NO background card or frame, just the clipboard, clean and readable at small sizes"
+    },
+    {
+      "id": "fulfill_order",
+      "prompt": "A closed package box being handed forward with a small checkmark badge, deliver order action icon"
+    },
+    {
+      "id": "pack_order",
+      "prompt": "An open packing table with a sealed shipping box and packing tape roll, pack order action icon"
+    },
+    {
+      "id": "player_focus",
+      "prompt": "A top-down cartoon view of a cute warehouse worker character, small orange-haired person seen from above with a simple crosshair or location-pin target circle beneath them, focus-camera action icon, clean and readable at 32px"
+    },
+    {
+      "id": "avatar",
+      "prompt": "A friendly cartoon warehouse worker character, head and shoulders portrait bust, orange spiky hair, dark jacket with white shirt, gentle smile, front view facing the camera, clean and readable at small sizes"
+    },
+    {
+      "id": "inventory",
+      "prompt": "A small stack of two cardboard storage boxes, warm brown cardboard with tape, simple inventory storage icon, front three-quarter view, clean and readable at small sizes"
+    },
+    {
+      "id": "headphones",
+      "prompt": "A pair of sleek over-ear wireless headphones in bold teal-blue, product inventory icon, simple and readable at small size"
+    },
+    {
+      "id": "hair_dryer",
+      "prompt": "A coral-orange hair dryer appliance, product inventory icon, simple and readable at small size"
+    },
+    {
+      "id": "mouse",
+      "prompt": "A green computer mouse, product inventory icon, simple and readable at small size"
+    },
+    {
+      "id": "package",
+      "prompt": "A sealed brown shipping parcel with tape, packed order product icon"
+    }
+  ]
+}

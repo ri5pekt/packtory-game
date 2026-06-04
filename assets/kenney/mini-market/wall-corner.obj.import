@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://c0gsfd7qjtutd"
+path="res://.godot/imported/wall-corner.obj-0c2a334ff5528bce767828b29ab7553d.mesh"
+
+[deps]
+
+files=["res://.godot/imported/wall-corner.obj-0c2a334ff5528bce767828b29ab7553d.mesh"]
+
+source_file="res://assets/kenney/mini-market/wall-corner.obj"
+dest_files=["res://.godot/imported/wall-corner.obj-0c2a334ff5528bce767828b29ab7553d.mesh", "res://.godot/imported/wall-corner.obj-0c2a334ff5528bce767828b29ab7553d.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

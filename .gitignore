@@ -1,0 +1,24 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# Godot export output
+/build/
+export_presets.cfg
+*.translation
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Secrets (never commit API tokens)
+.env
+*.token
+
+# Local scratch tools (created ad-hoc during dev)
+/tools_*.gd
+/tools_*.gd.uid
+/tools_*.uid
+/_*.png
+/_*.png.import

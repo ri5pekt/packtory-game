@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://cfaayn523vhb1"
+path="res://.godot/imported/floor.obj-c0c4221f8e5d0a690dde358c2e741afe.mesh"
+
+[deps]
+
+files=["res://.godot/imported/floor.obj-c0c4221f8e5d0a690dde358c2e741afe.mesh"]
+
+source_file="res://assets/kenney/mini-market/floor.obj"
+dest_files=["res://.godot/imported/floor.obj-c0c4221f8e5d0a690dde358c2e741afe.mesh", "res://.godot/imported/floor.obj-c0c4221f8e5d0a690dde358c2e741afe.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

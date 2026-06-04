@@ -1,0 +1,42 @@
+[gd_scene load_steps=6 format=3 uid="uid://bworkerpacktory"]
+
+[ext_resource type="Script" path="res://scripts/worker/worker.gd" id="1_worker"]
+[ext_resource type="PackedScene" path="res://assets/kenney/mini-characters/character-male-d.glb" id="2_model"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_click"]
+radius = 0.35
+height = 1.2
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_ring"]
+top_radius = 0.46
+bottom_radius = 0.46
+height = 0.025
+radial_segments = 32
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ring"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.1, 0.82, 1, 0.7)
+emission_enabled = true
+emission = Color(0.1, 0.82, 1, 1)
+emission_energy_multiplier = 1.2
+render_priority = 10
+cull_mode = 2
+
+[node name="Worker" type="Node3D"]
+script = ExtResource("1_worker")
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+
+[node name="ClickArea" type="Area3D" parent="."]
+collision_layer = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ClickArea"]
+shape = SubResource("CapsuleShape3D_click")
+
+[node name="SelectionRing" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.115, 0)
+cast_shadow = 0
+mesh = SubResource("CylinderMesh_ring")
+surface_material_override/0 = SubResource("StandardMaterial3D_ring")
