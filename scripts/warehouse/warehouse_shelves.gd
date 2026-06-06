@@ -17,6 +17,7 @@ var _grid: WarehouseGrid
 
 
 func _ready() -> void:
+	add_to_group("warehouse_shelves")
 	_grid = get_node("/root/GridService") as WarehouseGrid
 	for cell in SHELF_CELLS:
 		_spawn_shelf(cell)
@@ -32,5 +33,3 @@ func _spawn_shelf(cell: Vector2i) -> void:
 	shelf.add_to_group("shelves")
 	add_child(shelf)
 	shelf.setup(_grid.cell_to_world(cell), SHELF_YAW)
-
-	_grid.register_blocked_cell(cell)

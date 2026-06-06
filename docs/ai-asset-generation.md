@@ -4,7 +4,7 @@ Packtory UI icons live in `assets/ui/icons/` and load through `IconRegistry`.
 
 **For AI agents:** see **[agent-replicate-icon-generation.md](./agent-replicate-icon-generation.md)** — step-by-step handoff with API calls, verification, and troubleshooting.
 
-**Never commit API tokens.** Use `REPLICATE_API_TOKEN` in your environment only.
+**Never commit API tokens.** Store yours in project-root `.env` (gitignored; copy from `.env.example`). Icon scripts load it automatically.
 
 ---
 
@@ -29,7 +29,7 @@ Packtory UI icons live in `assets/ui/icons/` and load through `IconRegistry`.
 ## Quick start
 
 ```powershell
-$env:REPLICATE_API_TOKEN = "r8_…"
+# One-time: copy .env.example → .env and paste your Replicate token
 
 # Re-process existing raw JPEGs (fast, ~3s/icon):
 python tools/remove_icon_background.py
@@ -96,7 +96,8 @@ Use `isnet-general-use` model for icons. Enable `alpha_matting=True` for hair/fu
 | `take` / `put` | Shelf pick / stock |
 | `pickup` | Delivery box |
 | `take_order` / `fulfill_order` / `pack_order` | Order flow |
-| `book`, `hair_dryer`, `mouse`, `package` | Products |
+| `waiting` | Customer hourglass bubble while order is in progress |
+| `headphones`, `hair_dryer`, `mouse`, `package` | Products |
 | `coin` | Money HUD (future) |
 
 ---
@@ -121,5 +122,7 @@ In-game: `IconRegistry.get_icon("pickup")` → `Texture2D`
 | `tools/generate_icons.py` | Full generate + bg removal pipeline |
 | `tools/remove_icon_background.py` | Bria bg removal only |
 | `tools/process_ui_icon.py` | Legacy chroma-key trim/resize (fallback) |
+| `.env` | Local `REPLICATE_API_TOKEN` (gitignored) |
+| `.env.example` | Template — safe to commit |
 | `assets/ui/icons/raw/` | Source JPEGs from Seedream |
 | `assets/ui/icons/*.png` | Final HUD icons |

@@ -26,5 +26,3 @@ func _spawn_table() -> void:
 	table.add_to_group("packing_tables")
 	add_child(table)
 	table.setup(_grid.cell_to_world(TABLE_CELL), TABLE_YAW)
-	for cell in table.get_footprint_cells(TABLE_CELL):
-		_grid.block_cell(cell)

@@ -130,7 +130,7 @@ building‑kit’s 2 m module:
 
 ### 7.2 Products (`scripts/gameplay/product_catalog.gd`, `ProductCatalog`)
 Static catalog of products (model, scale, UI colour, shelf layout):
-- `book`, `hair_dryer`, `mouse` — the starting orderable products (Household
+- `headphones`, `hair_dryer`, `mouse` — the starting orderable products (Household
   Props 001 models).
 - `package` — the packed‑order box (Empty Box.glb), flagged `is_package`.
 - Helpers: `random_order` (≤ `ORDER_MAX_UNITS` = 4 units total),
@@ -145,7 +145,8 @@ Static catalog of products (model, scale, UI colour, shelf layout):
   `add_one` rebuild the visible products.
 - An **Area3D** click target (layer 1) and a billboard **Label3D** debug counter
   (`Book 10/10`) above each shelf.
-- Three shelves spawned by `warehouse_shelves.gd` (book / hair dryer / mouse) in
+- Three shelves spawned by `warehouse_shelves.gd` (any product; dock restocks
+  headphones / hair dryer / mouse) in
   the north work zone; their cells are registered as blocked.
 
 ### 7.4 Packing table (`scripts/warehouse/packing_table.gd`, `PackingTable`)

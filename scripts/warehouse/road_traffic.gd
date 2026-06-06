@@ -17,8 +17,8 @@ const CAR_MODELS := [
 const MIN_SPAWN_SEC := 2.5
 const MAX_SPAWN_SEC := 8.0
 const MAX_ACTIVE_CARS := 4
-const MIN_SPEED := 5.0
-const MAX_SPEED := 9.0
+const MIN_SPEED := 3.5
+const MAX_SPEED := 6.5
 
 var _grid: WarehouseGrid
 var _spawn_timer: Timer

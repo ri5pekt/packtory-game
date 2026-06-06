@@ -61,6 +61,10 @@ func get_camera() -> Camera3D:
 	return camera
 
 
+func get_reference_ortho_size() -> float:
+	return _default_zoom
+
+
 func get_focus() -> Vector3:
 	return _focus
 

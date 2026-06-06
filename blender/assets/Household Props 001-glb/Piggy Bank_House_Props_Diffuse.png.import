@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dtduij63hi13c"
-path="res://.godot/imported/Piggy Bank_House_Props_Diffuse.png-02f2af1f2f78ddea8c155d3c0f8bdc8a.ctex"
+path.s3tc="res://.godot/imported/Piggy Bank_House_Props_Diffuse.png-02f2af1f2f78ddea8c155d3c0f8bdc8a.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "86f397ace68d6e758810bd2471c3c8f3"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://blender/assets/Household Props 001-glb/Piggy Bank_House_Props_Diffuse.png"
-dest_files=["res://.godot/imported/Piggy Bank_House_Props_Diffuse.png-02f2af1f2f78ddea8c155d3c0f8bdc8a.ctex"]
+dest_files=["res://.godot/imported/Piggy Bank_House_Props_Diffuse.png-02f2af1f2f78ddea8c155d3c0f8bdc8a.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

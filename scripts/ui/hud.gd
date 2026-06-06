@@ -1,56 +1,68 @@
 extends Control
 
-## Top HUD — transparent bar, all items left-aligned:
-##   [ Coin icon  $1,250 ]  [ Day 1  21:45 ]  [ Player btn ]  [ Bag btn  badge ]
-##
-## Tapping the bag opens a slide-down inventory panel.
-## Tapping outside the panel (or the bag again) closes it.
+## Top HUD shell — icon buttons on the left, progression stats to their right.
+## Inventory bag opens a slide-down panel below the bag button.
 
-const HUD_HEIGHT := 52.0
-const PAD_H := 10.0         # horizontal padding inside bar
-const ITEM_GAP := 14.0      # gap between HUD groups
-const COIN_ICON_SIZE := 22.0
-const BTN_SIZE := 40.0
+const HudProgressionPanelScript = preload("res://scripts/ui/hud_progression_panel.gd")
+const GameUIThemeScript = preload("res://scripts/shared/game_ui_theme.gd")
+const WorkerScript = preload("res://scripts/worker/worker.gd")
+const DeliveryTrackerHudScript = preload("res://scripts/ui/delivery_tracker_hud.gd")
+
+const HUD_HEIGHT := HudProgressionPanelScript.PANEL_HEIGHT
+const PAD_H := 10.0
+const ITEM_GAP := 10.0
+const BTN_SIZE := GameUIThemeScript.BTN_MIN_HEIGHT_TOUCH
 const BADGE_SIZE := 17.0
 const PANEL_ANIM_SEC := 0.20
-const TIME_UPDATE_SEC := 1.0
+const TIME_UPDATE_SEC := 5.0
 
-# Inventory slot grid.
-const SLOT_COUNT := 8
-const SLOT_COLUMNS := 4
-const SLOT_SIZE := 64.0
+const SLOT_COUNT := WorkerScript.MAX_CARRIED_ENTRIES
+const SLOT_COLUMNS := 3
+const SLOT_SIZE := 72.0
 const SLOT_GAP := 8
+const SLOT_LABEL_PAD := 4.0
+const SLOT_LABEL_TOP := 3.0
+const SLOT_LABEL_HEIGHT := 20.0
+const SLOT_ICON_TOP := 22.0
+const SLOT_ICON_MAX := 34.0
+const PANEL_PAD_H := 14.0
+const PANEL_PAD_V := 12.0
+const PANEL_TITLE_HEIGHT := 20.0
+const PANEL_TITLE_GAP := 8.0
 
-const ACCENT := Color(0.26, 0.62, 0.92)
-const TEXT_COLOR := Color(1.0, 1.0, 1.0)       # white text reads on any bg
-const DIM_TEXT := Color(0.78, 0.83, 0.90)
-const PANEL_BG := Color(0.10, 0.12, 0.16, 0.96)
+const ACCENT := GameUIThemeScript.ACCENT
+const TEXT_COLOR := Color(1.0, 1.0, 1.0)
+const DIM_TEXT := GameUIThemeScript.DIM_TEXT_LIGHT
+const PANEL_BG := Color(0.10, 0.12, 0.16, 1.0)
+const DIM_OVERLAY_COLOR := Color(0.0, 0.0, 0.0, 0.35)
 const BADGE_COLOR := Color(0.92, 0.36, 0.26)
 
-var _coins: int = 1250
-var _day: int = 1
-
-var _coin_label: Label
-var _time_label: Label
+var _progression_panel: Control
 var _badge_bg: Panel
 var _badge_label: Label
-var _inv_panel: Control
+var _inv_btn: Button
+var _edit_layout_btn: Button
+var _inv_panel: PanelContainer
 var _inv_list: GridContainer
-var _dim_overlay: ColorRect     # full-screen catch-tap-outside
+var _dim_overlay: ColorRect
 var _panel_open := false
 var _panel_tween: Tween
 var _time_timer: Timer
 var _worker: Worker
+var _worker_bind_attempts := 0
+var _delivery_tracker: Control
+const MAX_WORKER_BIND_ATTEMPTS := 60
 
 
 func _ready() -> void:
-	# Stretch to top of screen, height = HUD_HEIGHT.
+	add_to_group("hud")
 	set_anchors_preset(Control.PRESET_TOP_WIDE)
-	custom_minimum_size = Vector2(0, HUD_HEIGHT)
+	custom_minimum_size = Vector2(0.0, HUD_HEIGHT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	_build_bar()
 	call_deferred("_build_overlay_and_panel")
+	call_deferred("_build_delivery_tracker")
 	call_deferred("_relayout")
 	get_viewport().size_changed.connect(_relayout)
 	call_deferred("_bind_worker")
@@ -58,9 +70,45 @@ func _ready() -> void:
 	_time_timer = Timer.new()
 	_time_timer.wait_time = TIME_UPDATE_SEC
 	_time_timer.autostart = true
-	_time_timer.timeout.connect(_update_time)
+	_time_timer.timeout.connect(_on_time_tick)
 	add_child(_time_timer)
-	_update_time()
+
+
+func get_progression_panel() -> Control:
+	return _progression_panel
+
+
+func update_progression(
+	coins: int = -1,
+	day: int = -1,
+	game_minutes: int = -1,
+	level: int = -1,
+	xp: int = -1
+) -> void:
+	if _progression_panel and _progression_panel.has_method("apply_values"):
+		_progression_panel.apply_values(coins, day, game_minutes, level, xp)
+
+
+func sync_from_save_manager() -> void:
+	sync_from_progression_sources()
+
+
+func sync_from_progression_sources() -> void:
+	if _progression_panel and _progression_panel.has_method("bind_progression_sources"):
+		_progression_panel.bind_progression_sources()
+	elif _progression_panel and _progression_panel.has_method("sync_from_save_manager"):
+		_progression_panel.sync_from_save_manager()
+
+
+func _build_delivery_tracker() -> void:
+	var parent := get_parent()
+	if parent == null:
+		return
+	_delivery_tracker = DeliveryTrackerHudScript.new()
+	_delivery_tracker.name = "DeliveryTrackerHud"
+	_delivery_tracker.z_index = 30
+	parent.add_child(_delivery_tracker)
+	_delivery_tracker.set_bar_top(HUD_HEIGHT)
 
 
 func _relayout() -> void:
@@ -69,12 +117,11 @@ func _relayout() -> void:
 	if _dim_overlay:
 		_dim_overlay.set_deferred("size", vp)
 	if _inv_panel:
-		_inv_panel.set_deferred("size", Vector2(vp.x, _inv_panel.custom_minimum_size.y))
-		if not _panel_open:
-			_inv_panel.set_deferred("position", Vector2(0.0, HUD_HEIGHT))
+		_sync_inventory_panel_size()
+		_position_inv_panel(not _panel_open)
+	if _delivery_tracker and _delivery_tracker.has_method("reposition"):
+		_delivery_tracker.reposition(vp.x, HUD_HEIGHT)
 
-
-# ── bar (transparent, left-aligned) ──────────────────────────────────────────
 
 func _build_bar() -> void:
 	var row := HBoxContainer.new()
@@ -86,45 +133,23 @@ func _build_bar() -> void:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(row)
 
-	row.add_child(_coins_widget())
-	row.add_child(_gap(ITEM_GAP))
-	row.add_child(_datetime_widget())
-	row.add_child(_gap(ITEM_GAP))
 	row.add_child(_player_button())
 	row.add_child(_gap(4.0))
 	row.add_child(_inventory_button())
+	row.add_child(_gap(4.0))
+	row.add_child(_edit_layout_button())
+	row.add_child(_gap(4.0))
+	row.add_child(_settings_button())
+	row.add_child(_gap(4.0))
+	row.add_child(_debug_button())
+	row.add_child(_gap(ITEM_GAP))
 
-
-func _coins_widget() -> Control:
-	var c := _row_cell()
-	var icon_tex := IconRegistry.get_icon("coin")
-	if icon_tex:
-		var icon := TextureRect.new()
-		icon.texture = icon_tex
-		icon.custom_minimum_size = Vector2(COIN_ICON_SIZE, COIN_ICON_SIZE)
-		icon.size = Vector2(COIN_ICON_SIZE, COIN_ICON_SIZE)
-		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		c.add_child(icon)
-	_coin_label = _label("$%s" % _format_number(_coins), 15, true)
-	c.add_child(_coin_label)
-	return c
-
-
-func _datetime_widget() -> Control:
-	var c := _row_cell()
-	var day_lbl := _label("Day %d" % _day, 14, false)
-	day_lbl.add_theme_color_override("font_color", DIM_TEXT)
-	c.add_child(day_lbl)
-	var sep := _label(" · ", 14, false)
-	sep.add_theme_color_override("font_color", DIM_TEXT)
-	c.add_child(sep)
-	_time_label = _label("--:--", 15, true)
-	c.add_child(_time_label)
-	return c
+	_progression_panel = HudProgressionPanelScript.new()
+	_progression_panel.name = "ProgressionPanel"
+	_progression_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_progression_panel)
+	_progression_panel.ensure_built()
+	_progression_panel.bind_progression_sources()
 
 
 func _player_button() -> Control:
@@ -133,12 +158,42 @@ func _player_button() -> Control:
 	return btn
 
 
+func _edit_layout_button() -> Control:
+	var btn := _boxed_icon_button("edit_layout", "▦")
+	btn.tooltip_text = "Edit Layout"
+	_edit_layout_btn = btn
+	btn.pressed.connect(_on_edit_layout_pressed)
+	return btn
+
+
+func _settings_button() -> Control:
+	var btn := _boxed_icon_button("settings", "⚙")
+	btn.pressed.connect(_on_settings_pressed)
+	return btn
+
+
+func _debug_button() -> Control:
+	var btn := _boxed_icon_button("debug", "🐛")
+	btn.tooltip_text = "Debug"
+	btn.pressed.connect(_on_debug_pressed)
+	return btn
+
+
+func set_edit_layout_visible(visible: bool) -> void:
+	if _edit_layout_btn:
+		_edit_layout_btn.visible = visible
+
+
+func get_edit_layout_button() -> Button:
+	return _edit_layout_btn
+
+
 func _inventory_button() -> Control:
 	var btn := _boxed_icon_button("inventory", "🎒")
+	_inv_btn = btn
 	btn.pressed.connect(_on_inventory_pressed)
 	btn.clip_contents = false
 
-	# Badge: rounded red pill over the button's top-right corner.
 	_badge_bg = Panel.new()
 	var bs := StyleBoxFlat.new()
 	bs.bg_color = BADGE_COLOR
@@ -148,7 +203,10 @@ func _inventory_button() -> Control:
 	_badge_bg.add_theme_stylebox_override("panel", bs)
 	_badge_bg.custom_minimum_size = Vector2(BADGE_SIZE, BADGE_SIZE)
 	_badge_bg.size = Vector2(BADGE_SIZE, BADGE_SIZE)
-	_badge_bg.position = Vector2(BTN_SIZE - BADGE_SIZE + 4.0, -5.0)
+	_badge_bg.position = Vector2(
+		(BTN_SIZE - BADGE_SIZE) * 0.5,
+		BTN_SIZE - BADGE_SIZE + 2.0
+	)
 	_badge_bg.visible = false
 	_badge_bg.z_index = 5
 	_badge_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -166,87 +224,83 @@ func _inventory_button() -> Control:
 	return btn
 
 
-# ── dim overlay + inventory panel (added as siblings in the CanvasLayer) ──────
-
 func _build_overlay_and_panel() -> void:
 	var parent := get_parent()
 	if parent == null:
 		return
 
-	# Full-screen invisible overlay that catches taps outside the panel.
 	_dim_overlay = ColorRect.new()
 	_dim_overlay.name = "InvDimOverlay"
-	_dim_overlay.color = Color(0, 0, 0, 0)
-	_dim_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_dim_overlay.color = DIM_OVERLAY_COLOR
+	_dim_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_dim_overlay.visible = false
-	_dim_overlay.gui_input.connect(_on_overlay_input)
+	_dim_overlay.z_index = 40
 	parent.add_child(_dim_overlay)
 	_dim_overlay.set_deferred("size", get_viewport_rect().size)
-	# Make sure it sits between bar and panel in Z order.
 	parent.move_child(_dim_overlay, get_index() + 1)
 
-	# Slide-down inventory panel.
-	_inv_panel = Control.new()
+	_inv_panel = PanelContainer.new()
 	_inv_panel.name = "InventoryPanel"
-	var rows := ceili(float(SLOT_COUNT) / float(SLOT_COLUMNS))
-	var panel_h := 12.0 + 22.0 + 8.0 + rows * SLOT_SIZE + (rows - 1) * SLOT_GAP + 14.0
-	_inv_panel.custom_minimum_size = Vector2(0, panel_h)
 	_inv_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_inv_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_inv_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_inv_panel.z_index = 50
 	_inv_panel.visible = false
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = PANEL_BG
+	panel_style.border_color = ACCENT.darkened(0.25)
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(12)
+	panel_style.shadow_color = Color(0, 0, 0, 0.35)
+	panel_style.shadow_size = 6
+	_inv_panel.add_theme_stylebox_override("panel", panel_style)
 	parent.add_child(_inv_panel)
-	_inv_panel.set_deferred("size", Vector2(get_viewport_rect().size.x,
-		_inv_panel.custom_minimum_size.y))
-	_inv_panel.set_deferred("position", Vector2(0.0, HUD_HEIGHT))
-
-	var bg := ColorRect.new()
-	bg.color = PANEL_BG
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_inv_panel.add_child(bg)
-
-	var bline := ColorRect.new()
-	bline.color = ACCENT.darkened(0.3)
-	bline.custom_minimum_size = Vector2(0, 1)
-	bline.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	bline.offset_top = -1.0
-	bline.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_inv_panel.add_child(bline)
+	_sync_inventory_panel_size()
+	_position_inv_panel(true)
 
 	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 14)
-	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	margin.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	margin.add_theme_constant_override("margin_left", int(PANEL_PAD_H))
+	margin.add_theme_constant_override("margin_right", int(PANEL_PAD_H))
+	margin.add_theme_constant_override("margin_top", int(PANEL_PAD_V))
+	margin.add_theme_constant_override("margin_bottom", int(PANEL_PAD_V))
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_inv_panel.add_child(margin)
 
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 8)
+	col.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	col.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	col.add_theme_constant_override("separation", PANEL_TITLE_GAP)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_child(col)
 
 	var title := Label.new()
 	title.text = "Inventory"
 	title.add_theme_font_size_override("font_size", 16)
-	title.add_theme_color_override("font_color", Color(0.78, 0.83, 0.90))
+	title.add_theme_color_override("font_color", DIM_TEXT)
+	title.custom_minimum_size.y = PANEL_TITLE_HEIGHT
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(title)
 
 	_inv_list = GridContainer.new()
 	_inv_list.columns = SLOT_COLUMNS
+	_inv_list.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_inv_list.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_inv_list.add_theme_constant_override("h_separation", SLOT_GAP)
 	_inv_list.add_theme_constant_override("v_separation", SLOT_GAP)
 	_inv_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(_inv_list)
 
 
-func _on_overlay_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
-		_close_panel()
+func notify_world_tap(screen_position: Vector2) -> bool:
+	if not _panel_open or _inv_panel == null:
+		return false
+	if _inv_panel.get_global_rect().has_point(screen_position):
+		return true
+	_close_panel()
+	return false
 
-
-# ── open / close ──────────────────────────────────────────────────────────────
 
 func _on_inventory_pressed() -> void:
 	if _panel_open:
@@ -256,12 +310,54 @@ func _on_inventory_pressed() -> void:
 		_open_panel()
 
 
+func _inventory_panel_size() -> Vector2:
+	var slot_count := _slot_count()
+	var columns := mini(SLOT_COLUMNS, maxi(1, slot_count))
+	var rows := ceili(float(slot_count) / float(columns))
+	var grid_w := columns * SLOT_SIZE + (columns - 1) * SLOT_GAP
+	var grid_h := rows * SLOT_SIZE + (rows - 1) * SLOT_GAP
+	var inner_w := grid_w
+	var inner_h := PANEL_TITLE_HEIGHT + PANEL_TITLE_GAP + grid_h
+	var w := inner_w + PANEL_PAD_H * 2.0
+	var h := inner_h + PANEL_PAD_V * 2.0
+	return Vector2(w, h)
+
+
+func _slot_count() -> int:
+	return SLOT_COUNT
+
+
+func _sync_inventory_panel_size() -> void:
+	if _inv_panel == null:
+		return
+	var panel_size := _inventory_panel_size()
+	_inv_panel.custom_minimum_size = panel_size
+	_inv_panel.size = panel_size
+
+
+func _panel_anchor_x() -> float:
+	var w := _inventory_panel_size().x
+	var x := PAD_H
+	if _inv_btn:
+		x = _inv_btn.global_position.x + (_inv_btn.size.x - w) * 0.5
+	var vp_w := get_viewport_rect().size.x
+	return clampf(x, 8.0, vp_w - w - 8.0)
+
+
+func _position_inv_panel(hidden_above: bool) -> void:
+	if _inv_panel == null:
+		return
+	var y := HUD_HEIGHT - _inv_panel.size.y if hidden_above else HUD_HEIGHT
+	_inv_panel.position = Vector2(_panel_anchor_x(), y)
+
+
 func _open_panel() -> void:
 	_panel_open = true
+	_sync_inventory_panel_size()
 	_inv_panel.visible = true
 	_dim_overlay.visible = true
-	# Start above: slide down.
-	_inv_panel.position = Vector2(0.0, HUD_HEIGHT - _inv_panel.size.y)
+	_dim_overlay.z_index = 40
+	_position_inv_panel(true)
 	if _panel_tween:
 		_panel_tween.kill()
 	_panel_tween = create_tween()
@@ -274,79 +370,170 @@ func _close_panel() -> void:
 	_dim_overlay.visible = false
 	if _panel_tween:
 		_panel_tween.kill()
+	var hidden_y := HUD_HEIGHT - _inv_panel.size.y
 	_panel_tween = create_tween()
-	_panel_tween.tween_property(
-		_inv_panel, "position:y",
-		HUD_HEIGHT - _inv_panel.size.y, PANEL_ANIM_SEC
-	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	_panel_tween.tween_property(_inv_panel, "position:y", hidden_y, PANEL_ANIM_SEC) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	_panel_tween.tween_callback(func() -> void: _inv_panel.visible = false)
 
-
-# ── inventory rows ────────────────────────────────────────────────────────────
 
 func _populate_inventory() -> void:
 	for child in _inv_list.get_children():
 		child.queue_free()
 
 	var stacks: Array = _worker.get_inventory_stacks() if _worker else []
-	for i in range(SLOT_COUNT):
+	var slot_count := _slot_count()
+	for i in range(slot_count):
 		if i < stacks.size():
-			var st: Dictionary = stacks[i]
-			_inv_list.add_child(_make_slot(String(st.get("id", "")), int(st.get("count", 0))))
+			_inv_list.add_child(_make_slot(stacks[i]))
 		else:
-			_inv_list.add_child(_make_slot("", 0))
+			_inv_list.add_child(_make_slot({}))
+	_sync_inventory_panel_size()
+	if _panel_open:
+		_position_inv_panel(false)
 
 
-func _make_slot(product_id: String, count: int) -> Control:
+func _make_slot(stack: Dictionary) -> Control:
+	var product_id := String(stack.get("id", ""))
+	var count := int(stack.get("count", 0))
+	var is_box := bool(stack.get("is_box", false))
+	var is_placeable_box := bool(stack.get("is_placeable_box", false))
+
 	var slot := Panel.new()
 	slot.custom_minimum_size = Vector2(SLOT_SIZE, SLOT_SIZE)
-	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.clip_contents = true
+	slot.mouse_filter = Control.MOUSE_FILTER_STOP if is_placeable_box else Control.MOUSE_FILTER_IGNORE
 
 	var filled := product_id != "" and count > 0
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.16, 0.19, 0.25, 0.9) if filled else Color(0.12, 0.14, 0.18, 0.65)
-	sb.border_color = ACCENT.lerp(Color(0.3, 0.34, 0.42), 0.4) if filled else Color(0.25, 0.29, 0.36, 0.8)
+	sb.bg_color = Color(0.16, 0.19, 0.25, 1.0) if filled else Color(0.12, 0.14, 0.18, 1.0)
+	sb.border_color = ACCENT.lerp(Color(0.3, 0.34, 0.42), 0.4) if filled else Color(0.25, 0.29, 0.36, 0.9)
 	sb.set_border_width_all(2 if filled else 1)
 	sb.set_corner_radius_all(10)
 	slot.add_theme_stylebox_override("panel", sb)
 
 	if filled:
-		var icon_tex := IconRegistry.product_icon(product_id)
-		if icon_tex:
-			var icon := TextureRect.new()
-			icon.texture = icon_tex
-			icon.set_anchors_preset(Control.PRESET_FULL_RECT)
-			icon.offset_left = 6; icon.offset_top = 4
-			icon.offset_right = -6; icon.offset_bottom = -12
-			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			icon.clip_contents = true
-			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			slot.add_child(icon)
-		# Count chip bottom-right.
-		var qty := Label.new()
-		qty.text = "×%d" % count
-		qty.add_theme_font_size_override("font_size", 13)
-		qty.add_theme_color_override("font_color", Color.WHITE)
-		qty.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
-		qty.add_theme_constant_override("shadow_offset_x", 1)
-		qty.add_theme_constant_override("shadow_offset_y", 1)
-		qty.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		qty.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-		qty.set_anchors_preset(Control.PRESET_FULL_RECT)
-		qty.offset_right = -5; qty.offset_bottom = -2
-		qty.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		slot.add_child(qty)
+		if is_placeable_box:
+			slot.add_child(
+				_make_slot_name(
+					"Place\n%s" % String(stack.get("label", "Shelf")),
+					Color(0.72, 0.92, 0.78),
+					8
+				)
+			)
+			_add_slot_icon(slot, IconRegistry.get_icon("pickup"), SLOT_ICON_MAX - 4, Color(0.72, 0.92, 0.78))
+			slot.gui_input.connect(func(event: InputEvent) -> void:
+				if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+					_on_placeable_box_pressed(stack)
+			)
+		elif is_box:
+			slot.add_child(_make_slot_name("Box", Color(0.95, 0.88, 0.65), 9))
+			_add_slot_icon(slot, IconRegistry.product_icon(product_id), SLOT_ICON_MAX - 4)
+			_add_slot_icon(
+				slot,
+				IconRegistry.get_icon("pickup"),
+				16.0,
+				Color(0.92, 0.78, 0.52),
+				Vector2(4.0 - (SLOT_SIZE - 16.0) * 0.5, SLOT_SIZE - 20.0 - SLOT_ICON_TOP)
+			)
+			if count > 0:
+				slot.tooltip_text = "Sealed box — %d %s inside" % [
+					count,
+					ProductCatalog.display_name(product_id),
+				]
+		else:
+			slot.add_child(_make_slot_name(ProductCatalog.display_name(product_id)))
+			_add_slot_icon(slot, IconRegistry.product_icon(product_id), SLOT_ICON_MAX)
+			slot.add_child(_make_slot_qty_badge(count, 11))
 
 	return slot
 
 
-# ── worker ────────────────────────────────────────────────────────────────────
+func _make_slot_name(text: String, color: Color = DIM_TEXT, font_size: int = 8) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl.max_lines_visible = 2
+	lbl.clip_text = true
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", font_size)
+	lbl.add_theme_color_override("font_color", color)
+	lbl.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	lbl.offset_left = SLOT_LABEL_PAD
+	lbl.offset_right = -SLOT_LABEL_PAD
+	lbl.offset_top = SLOT_LABEL_TOP
+	lbl.custom_minimum_size.y = SLOT_LABEL_HEIGHT
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return lbl
+
+
+func _make_slot_qty_badge(count: int, font_size: int = 11) -> Control:
+	var text := "×%d" % count
+	var badge := PanelContainer.new()
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.08, 0.12, 0.88)
+	style.set_corner_radius_all(6)
+	style.set_content_margin_all(2)
+	badge.add_theme_stylebox_override("panel", style)
+	var qty := Label.new()
+	qty.text = text
+	qty.add_theme_font_size_override("font_size", font_size)
+	qty.add_theme_color_override("font_color", Color.WHITE)
+	qty.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.add_child(qty)
+	var badge_h := float(font_size + 6)
+	var badge_w := 12.0 + float(text.length()) * (float(font_size) * 0.58)
+	badge.custom_minimum_size = Vector2(badge_w, badge_h)
+	badge.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	badge.offset_left = -badge_w - 4.0
+	badge.offset_top = -badge_h - 3.0
+	badge.offset_right = -4.0
+	badge.offset_bottom = -3.0
+	return badge
+
+
+func _add_slot_icon(
+	parent: Control,
+	tex: Texture2D,
+	size_px: float,
+	tint: Color = Color.WHITE,
+	offset: Vector2 = Vector2.ZERO
+) -> void:
+	if tex == null:
+		return
+	var frame := Control.new()
+	frame.custom_minimum_size = Vector2(size_px, size_px)
+	frame.size = Vector2(size_px, size_px)
+	frame.clip_contents = true
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.position = Vector2(
+		(SLOT_SIZE - size_px) * 0.5 + offset.x,
+		SLOT_ICON_TOP + offset.y
+	)
+	parent.add_child(frame)
+
+	var icon := TextureRect.new()
+	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	icon.texture = tex
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.modulate = tint
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(icon)
+
 
 func _bind_worker() -> void:
-	var workers := get_tree().get_nodes_in_group("workers")
+	if _worker != null or not is_inside_tree():
+		return
+	_worker_bind_attempts += 1
+	var tree := get_tree()
+	if tree == null:
+		return
+	var workers := tree.get_nodes_in_group("workers")
 	if workers.is_empty():
-		call_deferred("_bind_worker")
+		if _worker_bind_attempts < MAX_WORKER_BIND_ATTEMPTS:
+			call_deferred("_bind_worker")
 		return
 	_worker = workers[0] as Worker
 	if not _worker.inventory_changed.is_connected(_on_inventory_changed):
@@ -355,16 +542,59 @@ func _bind_worker() -> void:
 
 
 func _on_inventory_changed(stacks: Array) -> void:
-	var total := 0
-	for stack in stacks:
-		total += int(stack.get("count", 0))
+	var total := _count_inventory_items(stacks)
 	_badge_label.text = str(total)
 	_badge_bg.visible = total > 0
 	if _panel_open:
 		_populate_inventory()
 
 
-# ── player focus ──────────────────────────────────────────────────────────────
+func _count_inventory_items(stacks: Array) -> int:
+	var total := 0
+	for stack in stacks:
+		if bool(stack.get("is_box", false)) or bool(stack.get("is_placeable_box", false)):
+			total += 1
+		else:
+			total += int(stack.get("count", 0))
+	return total
+
+
+func _on_placeable_box_pressed(stack: Dictionary) -> void:
+	_close_panel()
+	var placement := get_tree().get_first_node_in_group("warehouse_placement_mode")
+	if placement != null and placement.has_method("begin_placement"):
+		placement.begin_placement(stack)
+
+
+func _on_settings_pressed() -> void:
+	if _panel_open:
+		_close_panel()
+	var debug := get_tree().get_first_node_in_group("debug_panel")
+	if debug != null and debug.has_method("is_open") and debug.is_open():
+		debug.close()
+	var settings := get_tree().get_first_node_in_group("settings_menu")
+	if settings != null and settings.has_method("toggle"):
+		settings.toggle()
+
+
+func _on_debug_pressed() -> void:
+	if _panel_open:
+		_close_panel()
+	var settings := get_tree().get_first_node_in_group("settings_menu")
+	if settings != null and settings.has_method("is_open") and settings.is_open():
+		settings.close()
+	var debug := get_tree().get_first_node_in_group("debug_panel")
+	if debug != null and debug.has_method("toggle"):
+		debug.toggle()
+
+
+func _on_edit_layout_pressed() -> void:
+	if _panel_open:
+		_close_panel()
+	var edit_mode := get_node_or_null("../../WarehouseEditMode")
+	if edit_mode != null and edit_mode.has_method("enter_mode"):
+		edit_mode.enter_mode()
+
 
 func _on_player_pressed() -> void:
 	var rig := get_tree().get_first_node_in_group("camera_rig")
@@ -372,25 +602,11 @@ func _on_player_pressed() -> void:
 		rig.reset_view()
 
 
-# ── time ──────────────────────────────────────────────────────────────────────
-
-func _update_time() -> void:
-	var t := Time.get_time_dict_from_system()
-	_time_label.text = "%02d:%02d" % [int(t.get("hour", 0)), int(t.get("minute", 0))]
+func _on_time_tick() -> void:
+	if _progression_panel and _progression_panel.has_method("sync_from_save_manager"):
+		_progression_panel.sync_from_save_manager()
 
 
-# ── helpers ───────────────────────────────────────────────────────────────────
-
-func _row_cell() -> HBoxContainer:
-	var c := HBoxContainer.new()
-	c.add_theme_constant_override("separation", 5)
-	c.alignment = BoxContainer.ALIGNMENT_CENTER
-	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return c
-
-
-## A square button with a rounded "box" background and an icon (or emoji fallback).
 func _boxed_icon_button(icon_id: String, fallback_emoji: String) -> Button:
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(BTN_SIZE, BTN_SIZE)
@@ -423,29 +639,7 @@ func _boxed_icon_button(icon_id: String, fallback_emoji: String) -> Button:
 
 
 func _gap(width: float) -> Control:
-	var s := Control.new()
-	s.custom_minimum_size = Vector2(width, 1)
-	s.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return s
-
-
-func _label(text: String, size: int, bold: bool) -> Label:
-	var lbl := Label.new()
-	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", size if not bold else size + 1)
-	lbl.add_theme_color_override("font_color", TEXT_COLOR)
-	# Subtle drop shadow so text reads over any game background.
-	lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.55))
-	lbl.add_theme_constant_override("shadow_offset_x", 1)
-	lbl.add_theme_constant_override("shadow_offset_y", 1)
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return lbl
-
-
-func _format_number(n: int) -> String:
-	if n >= 1000000:
-		return "%.1fM" % (float(n) / 1000000.0)
-	if n >= 1000:
-		return "%d,%03d" % [n / 1000, n % 1000]
-	return str(n)
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(width, 1.0)
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return spacer

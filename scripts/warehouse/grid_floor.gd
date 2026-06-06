@@ -15,24 +15,30 @@ const GRASS_TREES := SK + "grass-trees.glb"
 const GRASS_TREES_TALL := SK + "grass-trees-tall.glb"
 const PAVEMENT := SK + "pavement.glb"
 const ROAD := SK + "road-straight.glb"
-const ROAD_CORNER := SK + "road-corner.glb"
-# rot=270 on road-corner.glb curves from East to North — used at the dock junction.
-const CORNER_JUNCTION_YAW := 270.0
+const ROAD_SPLIT := SK + "road-split.glb"
+# T junction: spur from the dock (north) meets the E-W main road.
+const SPLIT_JUNCTION_YAW := 180.0
 
 const FLOOR_TILE_PATH := BuildingLayout.FLOOR_PATH
-const FLOOR_TINT := Color(0.68, 0.69, 0.72)
+## Interior: clean light warm-grey, flat (no texture) so the floor reads as one
+## smooth surface with no tiling seams.
+const FLOOR_TINT := Color(0.80, 0.81, 0.84)
+## Apron: same Kenney tile and height as interior, darker tint for outdoor pads.
+const APRON_TINT := Color(0.42, 0.43, 0.49)
 
 const GRASS_COLOR := Color(0.56, 0.74, 0.30)
 # Warm multiply applied to the tree tiles so their foliage matches the warm lawn.
 const TREE_TINT := Color(1.20, 1.02, 0.72)
 const ROAD_YAW_DEG := 90.0  # tile road runs N-S by default; turn it to run E-W
 
-# Tree-tile clustering (low frequency = larger, more organic clumps).
+# Tree scatter on grass cells — medium-frequency noise so clumps appear yard-wide.
 const DECOR_SEED := 842014
-const NOISE_FREQUENCY := 0.11
-const TREE_NOISE_THRESHOLD := 0.40
-const TREE_FILL_CHANCE := 0.55  # thin trees out within a clump
+const NOISE_FREQUENCY := 0.22
+const TREE_NOISE_THRESHOLD := 0.12
+const TREE_FILL_CHANCE := 0.42
 const TREE_TALL_CHANCE := 0.4
+# Hidden under exterior apron tiles only — must sit below the Kenney floor mesh top.
+const FLOOR_FILLER_SINK_Y := -0.14
 # Tree tiles are dropped below the solid grass so their own base is hidden.
 const TREE_SINK := 0.12
 
@@ -60,13 +66,17 @@ func _build_ground() -> void:
 		GRASS_TREES_TALL: [] as Array[Transform3D],
 		PAVEMENT: [] as Array[Transform3D],
 		ROAD: [] as Array[Transform3D],
-		ROAD_CORNER: [] as Array[Transform3D],
+		ROAD_SPLIT: [] as Array[Transform3D],
 	}
 
 	for x in range(_grid.total_size.x):
 		for y in range(_grid.total_size.y):
 			var cell := Vector2i(x, y)
-			if _grid.is_warehouse_cell(cell):
+			if _grid.is_warehouse_floor_cell(cell):
+				# Exterior apron only: hidden grass underlay so edge seams never show sky.
+				if not _grid.uses_interior_warehouse_floor(cell):
+					grass_tiles.append(_filler_transform(cell))
+					grass_colors.append(_grass_color(cell))
 				continue
 			var path := _ground_tile_for_cell(cell)
 			if path == GRASS:
@@ -93,43 +103,46 @@ func _grass_color(cell: Vector2i) -> Color:
 
 
 func _ground_tile_for_cell(cell: Vector2i) -> String:
-	# Junction where the dock spur meets the main road: curved corner tile.
-	if (
-		cell.x == WarehouseGrid.DOCK_ROAD_COL
-		and cell.y == WarehouseGrid.DECORATIVE_ROAD_ROW
-	):
-		return ROAD_CORNER
+	if _is_dock_road_split_cell(cell):
+		return ROAD_SPLIT
+	if _grid.is_entrance_crosswalk_cell(cell):
+		return PAVEMENT
 	if _grid.is_decorative_road_cell(cell) or _grid.is_dock_road_connector_cell(cell):
 		return ROAD
 	if (
 		_grid.is_decorative_sidewalk_cell(cell)
 		or _grid.is_decorative_walkway_cell(cell)
-		or _grid.is_warehouse_border_cell(cell)
-		or _grid.is_dock_apron_cell(cell)
 	):
 		return PAVEMENT
 	return GRASS
 
 
 func _tree_tile_for_cell(cell: Vector2i) -> String:
-	# Clumped via noise, thinned by chance, kept clear of the building front.
-	if _is_foreground(cell):
+	if not _grid.is_grass_cell(cell):
 		return ""
-	if _noise.get_noise_2d(cell.x, cell.y) <= TREE_NOISE_THRESHOLD:
+	if _noise.get_noise_2d(float(cell.x), float(cell.y)) <= TREE_NOISE_THRESHOLD:
 		return ""
 	if _rng.randf() > TREE_FILL_CHANCE:
 		return ""
 	return GRASS_TREES_TALL if _rng.randf() < TREE_TALL_CHANCE else GRASS_TREES
 
 
+func _filler_transform(cell: Vector2i) -> Transform3D:
+	return Transform3D(
+		Basis.IDENTITY,
+		Vector3(cell.x + 0.5, FLOOR_FILLER_SINK_Y, cell.y + 0.5)
+	)
+
+
 func _tree_transform(cell: Vector2i) -> Transform3D:
 	return Transform3D(Basis.IDENTITY, Vector3(cell.x + 0.5, -TREE_SINK, cell.y + 0.5))
 
 
-func _is_foreground(cell: Vector2i) -> bool:
-	var origin := _grid.warehouse_origin
-	var size := WarehouseGrid.WAREHOUSE_SIZE
-	return cell.y > origin.y + size.y - 1 or cell.x > origin.x + size.x - 1
+func _is_dock_road_split_cell(cell: Vector2i) -> bool:
+	return (
+		cell.x == WarehouseGrid.DOCK_ROAD_COL
+		and cell.y == WarehouseGrid.DECORATIVE_ROAD_ROW
+	)
 
 
 func _tile_transform(cell: Vector2i, path: String) -> Transform3D:
@@ -137,10 +150,15 @@ func _tile_transform(cell: Vector2i, path: String) -> Transform3D:
 	if path == ROAD:
 		# Dock spur runs N-S (rot=0); main road runs E-W (rot=90).
 		yaw = 0.0 if _grid.is_dock_road_connector_cell(cell) else ROAD_YAW_DEG
-	elif path == ROAD_CORNER:
-		yaw = CORNER_JUNCTION_YAW
+	elif path == ROAD_SPLIT:
+		yaw = SPLIT_JUNCTION_YAW
 	var basis := Basis.from_euler(Vector3(0.0, deg_to_rad(yaw), 0.0))
-	return Transform3D(basis, Vector3(cell.x + 0.5, 0.0, cell.y + 0.5))
+	var y := _ground_tile_y(cell, path)
+	return Transform3D(basis, Vector3(cell.x + 0.5, y, cell.y + 0.5))
+
+
+func _ground_tile_y(_cell: Vector2i, _path: String) -> float:
+	return 0.0
 
 
 func _add_grass_multimesh(instances: Array[Transform3D], colors: PackedColorArray) -> void:
@@ -202,19 +220,45 @@ func _add_tile_multimesh(path: String, instances: Array[Transform3D]) -> void:
 
 
 func _build_warehouse_floor() -> void:
+	var interior: Array[Transform3D] = []
+	var apron: Array[Transform3D] = []
+
+	for cell in _grid.get_warehouse_floor_cells():
+		var is_interior := _grid.uses_interior_warehouse_floor(cell)
+		var transform := BuildingLayout.floor_tile_transform(cell, BuildingLayout.FLOOR_TILE_SCALE)
+		if is_interior:
+			interior.append(transform)
+		else:
+			apron.append(transform)
+
 	var floor := KenneyMeshLoader.load_renderable(FLOOR_TILE_PATH)
 	var floor_mesh: Mesh = floor.get("mesh")
 	if floor_mesh == null:
 		return
 
-	var instances: Array[Transform3D] = []
-	var origin := _grid.warehouse_origin
-	for x in range(WarehouseGrid.WAREHOUSE_SIZE.x):
-		for y in range(WarehouseGrid.WAREHOUSE_SIZE.y):
-			var cell := origin + Vector2i(x, y)
-			instances.append(BuildingLayout.floor_tile_transform(cell))
+	if not interior.is_empty():
+		var mat := _floor_material(floor.get("material") as Material)
+		_spawn_floor_multimesh("WarehouseFloor", floor_mesh, mat, interior)
 
-	var material := _floor_material(floor.get("material") as Material)
+	if not apron.is_empty():
+		var apron_mat := _apron_material()
+		_spawn_floor_multimesh("WarehouseApron", floor_mesh, apron_mat, apron)
+
+
+func _apron_material() -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = APRON_TINT
+	material.roughness = 1.0
+	material.metallic = 0.0
+	return material
+
+
+func _spawn_floor_multimesh(
+	host_name: String,
+	floor_mesh: Mesh,
+	material: Material,
+	instances: Array[Transform3D]
+) -> void:
 	var mesh := KenneyMeshLoader.mesh_with_material(floor_mesh, material)
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
@@ -222,21 +266,20 @@ func _build_warehouse_floor() -> void:
 	multi.instance_count = instances.size()
 	for i in range(instances.size()):
 		multi.set_instance_transform(i, instances[i])
-
 	var host := MultiMeshInstance3D.new()
-	host.name = "WarehouseFloor"
+	host.name = host_name
 	host.multimesh = multi
 	host.material_override = material
 	add_child(host)
 
 
-func _floor_material(source: Material) -> StandardMaterial3D:
+
+
+## Flat, untextured material — no albedo_texture means no tiling seams, giving a
+## perfectly smooth uniform floor. `source` is ignored on purpose.
+func _floor_material(_source: Material) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
-	if source is StandardMaterial3D:
-		var base := source as StandardMaterial3D
-		material.albedo_texture = base.albedo_texture
-		material.normal_texture = base.normal_texture
-		material.roughness = base.roughness
-		material.metallic = base.metallic
 	material.albedo_color = FLOOR_TINT
+	material.roughness = 1.0
+	material.metallic = 0.0
 	return material

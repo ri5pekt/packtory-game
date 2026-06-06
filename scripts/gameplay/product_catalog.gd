@@ -7,9 +7,11 @@ extends RefCounted
 const ORDER_MAX_UNITS := 4
 const HP := "res://blender/assets/Household Props 001-glb/"
 
+const CustomerOrderConfigScript = preload("res://scripts/gameplay/customer_order_config.gd")
+
 const PRODUCTS := {
 	"headphones": {
-		"name": "Headphones",
+		"name": "Wireless Headphones",
 		"color": Color(0.22, 0.65, 0.82),
 		"box_size": Vector3(0.20, 0.20, 0.14),
 	},
@@ -19,9 +21,14 @@ const PRODUCTS := {
 		"box_size": Vector3(0.17, 0.24, 0.14),
 	},
 	"mouse": {
-		"name": "Mouse",
+		"name": "Computer Mouse",
 		"color": Color(0.40, 0.74, 0.45),
-		"box_size": Vector3(0.20, 0.12, 0.18),
+		"box_size": Vector3(0.20, 0.12, 0.11),
+	},
+	"smart_watch": {
+		"name": "Smart Watch",
+		"color": Color(0.34, 0.78, 0.88),
+		"box_size": Vector3(0.16, 0.16, 0.12),
 	},
 	"package": {
 		"name": "Package",
@@ -42,6 +49,11 @@ static func get_def(product_id: String) -> Dictionary:
 
 static func display_name(product_id: String) -> String:
 	return PRODUCTS.get(product_id, {}).get("name", product_id)
+
+
+## Per-unit supplier cost for computer reorders (0 until pricing is enabled).
+static func unit_cost_of(product_id: String) -> int:
+	return int(PRODUCTS.get(product_id, {}).get("unit_cost", 0))
 
 
 static func color_of(product_id: String) -> Color:
@@ -114,23 +126,30 @@ static func orderable_product_ids() -> Array:
 
 
 ## A random order that fits in the worker's carry capacity (max ORDER_MAX_UNITS).
-static func random_order(rng: RandomNumberGenerator) -> Dictionary:
-	var pool: Array = orderable_product_ids()
+static func random_order(
+	rng: RandomNumberGenerator,
+	product_pool: Array = [],
+	game_day: int = 1
+) -> Dictionary:
+	var pool: Array = product_pool.duplicate()
+	if pool.is_empty():
+		pool = orderable_product_ids()
+	pool = pool.filter(func(id: Variant) -> bool:
+		return has_id(String(id)) and not is_package(String(id))
+	)
+	if pool.is_empty():
+		return {}
 	for i in range(pool.size() - 1, 0, -1):
 		var j := rng.randi_range(0, i)
 		var tmp = pool[i]
 		pool[i] = pool[j]
 		pool[j] = tmp
 
-	var kinds := rng.randi_range(1, mini(pool.size(), ORDER_MAX_UNITS))
+	var kinds := CustomerOrderConfigScript.pick_product_kind_count(rng, game_day, pool.size())
 	var order := {}
-	var remaining := ORDER_MAX_UNITS
 	for i in range(kinds):
-		if remaining <= 0:
-			break
-		var qty := rng.randi_range(1, mini(3, remaining))
+		var qty := CustomerOrderConfigScript.pick_line_quantity(rng, game_day, kinds)
 		order[pool[i]] = qty
-		remaining -= qty
 	return order
 
 

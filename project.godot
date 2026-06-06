@@ -11,19 +11,34 @@ config_version=5
 [application]
 
 config/name="packtory"
-run/main_scene="res://scenes/main/main.tscn"
+run/main_scene="res://scenes/main/main_menu.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
 
 GridService="*res://scripts/autoload/grid_service.gd"
+AlertMessages="*res://scripts/ui/alert_messages.gd"
+GameSession="*res://scripts/gameplay/game_session.gd"
+EconomyManager="*res://scripts/gameplay/economy_manager.gd"
+ProgressionManager="*res://scripts/gameplay/progression_manager.gd"
+ReputationManager="*res://scripts/gameplay/reputation_manager.gd"
+UnlockManager="*res://scripts/gameplay/unlock_manager.gd"
+GameTimeManager="*res://scripts/gameplay/game_time_manager.gd"
+IncomingDeliveryManager="*res://scripts/gameplay/incoming_delivery_manager.gd"
+WorkerHireManager="*res://scripts/gameplay/worker_hire_manager.gd"
+DayEndManager="*res://scripts/gameplay/day_end_manager.gd"
+DayStatsTracker="*res://scripts/gameplay/day_stats_tracker.gd"
+DayEndFlow="*res://scripts/gameplay/day_end_flow.gd"
+WorkerTaskManager="*res://scripts/gameplay/worker_task_manager.gd"
+GarbageDropManager="*res://scripts/gameplay/garbage_drop_manager.gd"
+SaveManager="*res://scripts/gameplay/save_manager.gd"
+DevSceneNav="*res://scripts/dev/dev_scene_nav.gd"
 
 [display]
 
 window/size/viewport_width=1440
 window/size/viewport_height=900
-window/size/initial_screen=0
 
 [rendering]
 

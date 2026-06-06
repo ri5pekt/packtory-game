@@ -1,0 +1,9 @@
+2026-06-06 20:54:44,019 - BlenderMCPServer - INFO - BlenderMCP server starting up
+2026-06-06 20:54:46,078 - BlenderMCPServer - ERROR - Failed to connect to Blender: [WinError 10061] No connection could be made because the target machine actively refused it
+2026-06-06 20:54:46,079 - BlenderMCPServer - ERROR - Failed to connect to Blender
+2026-06-06 20:54:46,355 - httpx - INFO - HTTP Request: POST https://yzasssndwqceclzilcdu.supabase.co/rest/v1/telemetry_events "HTTP/2 201 Created"
+2026-06-06 20:54:48,133 - BlenderMCPServer - ERROR - Failed to connect to Blender: [WinError 10061] No connection could be made because the target machine actively refused it
+2026-06-06 20:54:48,133 - BlenderMCPServer - ERROR - Failed to connect to Blender
+2026-06-06 20:54:48,134 - BlenderMCPServer - WARNING - Could not connect to Blender on startup: Could not connect to Blender. Make sure the Blender addon is running.
+2026-06-06 20:54:48,134 - BlenderMCPServer - WARNING - Make sure the Blender addon is running before using Blender resources or tools
+2026-06-06 20:54:48,135 - BlenderMCPServer - INFO - BlenderMCP server shut down

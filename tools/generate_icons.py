@@ -10,7 +10,10 @@ import sys
 import urllib.request
 from pathlib import Path
 
+from load_env import load_project_env
+
 ROOT = Path(__file__).resolve().parents[1]
+load_project_env()
 MANIFEST = Path(__file__).with_name("icon_manifest.json")
 RAW_DIR = ROOT / "assets" / "ui" / "icons" / "raw"
 OUT_DIR = ROOT / "assets" / "ui" / "icons"
@@ -77,7 +80,7 @@ def _remove_bg(raw: Path, out: Path, size: int) -> None:
 def main() -> int:
     token = os.environ.get("REPLICATE_API_TOKEN", "").strip()
     if not token:
-        print("Set REPLICATE_API_TOKEN first.", file=sys.stderr)
+        print("Set REPLICATE_API_TOKEN in .env (see .env.example).", file=sys.stderr)
         return 1
 
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))

@@ -7,15 +7,14 @@ extends Node3D
 
 const SHELF_MODEL := "res://blender/assets/kenney_mini-market/Models/GLB format/shelf-end.glb"
 const CLICK_LAYER := 1
-const MAX_STOCK := 10
-
-const LEVEL_Y := [0.175, 0.55]
-const PRODUCT_Z := -0.08
+const LEVEL_Y := [0.24, 0.60]   # matched to actual shelf-end surface heights
+const PRODUCT_Z := 0.04          # slightly inside the shelf bay (faces +Z at yaw=0)
 const APPROACH_Z := 0.85
 const FACE_Z := 0.15
-# Per-level columns and spacing (derived from box width + padding).
 const COLS_PER_LEVEL := 3
-const COL_SPACING := 0.24
+const SHELF_ROWS := 2
+const COL_SPACING := 0.22        # slightly tighter so boxes don't overhang the frame
+const MAX_STOCK := COLS_PER_LEVEL * SHELF_ROWS
 
 ## Empty string means the shelf is unassigned and accepts any product.
 var product_id: String = ""
@@ -23,18 +22,95 @@ var count: int = 0
 
 var _products_root: Node3D
 var _label: ProductLabel3D
+var _grid: WarehouseGrid
+var _anchor_cell := Vector2i.ZERO
+var _grid_obstacle: WarehouseObstacle
 
 
 func setup(world_position: Vector3, yaw_deg: float) -> void:
+	_ensure_grid()
+	_anchor_cell = _grid.world_to_cell(world_position) if _grid else Vector2i.ZERO
 	position = world_position
 	rotation_degrees.y = yaw_deg
-	_build_shelf()
-	_build_click_area()
-	_build_label()
-	_products_root = Node3D.new()
-	_products_root.name = "Products"
-	add_child(_products_root)
+	if get_child_count() == 0:
+		_build_shelf()
+		_build_click_area()
+		_build_label()
+		_products_root = Node3D.new()
+		_products_root.name = "Products"
+		add_child(_products_root)
+	else:
+		_sync_click_area_layer()
 	_refresh()
+	add_to_group("warehouse_placeables")
+	add_to_group("shelves")
+	_bind_grid_obstacle()
+
+
+func get_anchor_cell() -> Vector2i:
+	return _anchor_cell
+
+
+func get_placement_yaw() -> float:
+	return rotation_degrees.y
+
+
+func get_placeable_label() -> String:
+	return "Product Shelf"
+
+
+func get_footprint_cells_at(anchor_cell: Vector2i, _yaw_deg: float) -> Array[Vector2i]:
+	return [anchor_cell]
+
+
+func get_ignore_cells() -> Array[Vector2i]:
+	return get_footprint_cells_at(_anchor_cell, rotation_degrees.y)
+
+
+func preview_placement(anchor_cell: Vector2i, yaw_deg: float) -> void:
+	position = _grid.cell_to_world(anchor_cell)
+	rotation_degrees.y = yaw_deg
+
+
+func apply_placement(anchor_cell: Vector2i, yaw_deg: float) -> void:
+	_release_grid_obstacle()
+	_anchor_cell = anchor_cell
+	setup(_grid.cell_to_world(anchor_cell), yaw_deg)
+	_bind_grid_obstacle()
+
+
+func release_placement_cells() -> void:
+	_release_grid_obstacle()
+
+
+func _ensure_grid() -> void:
+	if _grid != null:
+		return
+	if is_inside_tree():
+		_grid = get_tree().root.get_node_or_null("GridService") as WarehouseGrid
+	if _grid == null and Engine.is_editor_hint():
+		_grid = get_node_or_null("/root/GridService") as WarehouseGrid
+
+
+func _bind_grid_obstacle() -> void:
+	if _grid == null:
+		return
+	if _grid_obstacle == null:
+		_grid_obstacle = WarehouseObstacle.new()
+		_grid_obstacle.name = "GridObstacle"
+		add_child(_grid_obstacle)
+	_grid_obstacle.occupy(get_footprint_cells_at(_anchor_cell, rotation_degrees.y))
+
+
+func _release_grid_obstacle() -> void:
+	if _grid_obstacle:
+		_grid_obstacle.release()
+
+
+func _sync_click_area_layer() -> void:
+	var area := get_node_or_null("ClickArea") as Area3D
+	if area:
+		area.collision_layer = CLICK_LAYER
 
 
 ## Legacy entry point used by spawners that pre-assign a product and start count.
@@ -42,7 +118,7 @@ func setup_with_product(id: String, world_position: Vector3, yaw_deg: float,
 		start_count: int = 0) -> void:
 	setup(world_position, yaw_deg)
 	if id != "" and start_count > 0:
-		stock_product(id, start_count)
+		stock_product(id, mini(start_count, MAX_STOCK))
 
 
 func is_empty_shelf() -> bool:
@@ -114,6 +190,12 @@ func free_space() -> int:
 	return MAX_STOCK - count
 
 
+func clear_stock() -> void:
+	product_id = ""
+	count = 0
+	_refresh()
+
+
 func get_approach_position() -> Vector3:
 	return global_position + global_transform.basis * Vector3(0.0, 0.0, APPROACH_Z)
 
@@ -169,7 +251,7 @@ func _build_click_area() -> void:
 func _build_label() -> void:
 	_label = ProductLabel3D.new()
 	_label.name = "ShelfLabel"
-	_label.position = Vector3(0.0, 1.05, 0.0)
+	_label.position = Vector3(0.0, 1.12, 0.0)
 	add_child(_label)
 
 
@@ -194,11 +276,9 @@ func _rebuild_products() -> void:
 	if product_id == "" or count == 0:
 		return
 
-	var capacity := COLS_PER_LEVEL * LEVEL_Y.size()
-	var visible := mini(count, capacity)
 	var box_sz := ProductCatalog.box_size_of(product_id)
 
-	for i in range(visible):
+	for i in range(count):
 		var level := i / COLS_PER_LEVEL
 		var col := i % COLS_PER_LEVEL
 		var item := _make_product_box(product_id, box_sz)
@@ -229,9 +309,9 @@ func _make_product_box(id: String, sz: Vector3) -> MeshInstance3D:
 	if icon_tex:
 		var sprite := Sprite3D.new()
 		sprite.texture = icon_tex
-		sprite.pixel_size = 0.00115
+		sprite.pixel_size = 0.0012
 		sprite.no_depth_test = false
-		sprite.position = Vector3(0.0, 0.0, sz.z * 0.5 + 0.002)
+		sprite.position = Vector3(0.0, 0.0, sz.z * 0.5 + 0.004)
 		mesh_inst.add_child(sprite)
 
 	return mesh_inst

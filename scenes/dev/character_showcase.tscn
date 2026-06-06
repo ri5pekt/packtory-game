@@ -1,0 +1,40 @@
+[gd_scene load_steps=5 format=3 uid="uid://cdevcharshowcase"]
+
+[ext_resource type="Script" path="res://scripts/dev/character_showcase.gd" id="1_showcase"]
+[ext_resource type="Script" path="res://scripts/dev/showcase_camera.gd" id="2_camera"]
+[ext_resource type="Script" path="res://scripts/input/touch_input.gd" id="3_touch"]
+[ext_resource type="Script" path="res://scripts/dev/showcase_ui.gd" id="4_ui"]
+
+[sub_resource type="Environment" id="Environment_showcase"]
+background_mode = 1
+background_color = Color(0.38, 0.44, 0.52, 1)
+ambient_light_source = 2
+ambient_light_color = Color(1, 1, 1, 1)
+ambient_light_energy = 0.55
+
+[node name="CharacterShowcase" type="Node3D"]
+script = ExtResource("1_showcase")
+
+[node name="Originals" type="Node3D" parent="."]
+
+[node name="Variations" type="Node3D" parent="."]
+
+[node name="ShowcaseCamera" type="Node3D" parent="."]
+script = ExtResource("2_camera")
+
+[node name="Camera3D" type="Camera3D" parent="ShowcaseCamera"]
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 4, 10, 2)
+light_color = Color(1, 0.97, 0.93, 1)
+light_energy = 1.15
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_showcase")
+
+[node name="TouchInput" type="Node" parent="."]
+script = ExtResource("3_touch")
+
+[node name="DevUI" type="CanvasLayer" parent="."]
+script = ExtResource("4_ui")

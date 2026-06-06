@@ -86,8 +86,8 @@ func path_as_world_array(from_world: Vector3, to_world: Vector3) -> Array[Vector
 func find_path_world(from_world: Vector3, to_world: Vector3) -> PackedVector3Array:
 	var start_cell := _grid.world_to_cell(from_world)
 	var goal := _resolve_goal_world(to_world)
-	goal.y = from_world.y
 	var goal_cell := _grid.world_to_cell(goal)
+	goal.y = _grid.walk_surface_y(goal_cell)
 
 	if not _grid.is_navigable_cell(start_cell) or not is_walkable(start_cell):
 		return PackedVector3Array()
@@ -185,7 +185,8 @@ func _string_pull_world(
 ) -> PackedVector3Array:
 	var points: Array[Vector3] = []
 	for point: Vector2 in grid_path:
-		points.append(Vector3(point.x, from_world.y, point.y))
+		var cell := _grid.world_to_cell(Vector3(point.x, 0.0, point.y))
+		points.append(Vector3(point.x, _grid.walk_surface_y(cell), point.y))
 
 	if points.is_empty():
 		return PackedVector3Array([goal_world])

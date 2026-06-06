@@ -1,9 +1,13 @@
 class_name SidewalkPedestrian
 extends Node3D
 
-## A character that walks in a straight line from `start` to `end` along any axis,
-## then despawns. Direction is derived from the route, so the same actor serves the
-## east-west road sidewalks and the north-south entrance walkway.
+## Decorative foot traffic only — walks from `start` to `end`, then despawns.
+## Never carries orders and never joins the customer queue.
+
+const CharacterAnimationUtilsScript = preload(
+	"res://scripts/shared/character_animation_utils.gd"
+)
+const PedestrianRolesScript = preload("res://scripts/gameplay/pedestrian_roles.gd")
 
 # Match the manager (worker model at scale 1.0) so foot traffic reads at one size.
 const PEDESTRIAN_SCALE := 1.0
@@ -30,14 +34,30 @@ func setup(
 
 	var model: Node3D = character_scene.instantiate()
 	model.scale = Vector3.ONE * PEDESTRIAN_SCALE
+	CharacterModelCleanup.strip_accessories(model)
 	add_child(model)
 
-	_anim = _find_animation_player(model)
-	_walk_anim_name = _resolve_anim_name(["walk", "Walk", "run", "Run"])
+	_anim = CharacterAnimationUtilsScript.find_animation_player(model)
+	_walk_anim_name = CharacterAnimationUtilsScript.resolve_anim_name(
+		_anim, ["walk", "Walk", "run", "Run"]
+	)
 	_play_walk()
 
 	_face_heading()
 	position = start
+	add_to_group(PedestrianRolesScript.GROUP_DECORATIVE)
+
+
+func has_order() -> bool:
+	return false
+
+
+func get_order() -> Dictionary:
+	return {}
+
+
+func is_decorative() -> bool:
+	return true
 
 
 func _process(delta: float) -> void:
@@ -64,22 +84,3 @@ func _play_walk() -> void:
 		return
 	animation.loop_mode = Animation.LOOP_LINEAR
 	_anim.play(_walk_anim_name)
-
-
-func _resolve_anim_name(preferred_names: Array[String]) -> String:
-	if _anim == null:
-		return ""
-	for anim_name in preferred_names:
-		if _anim.has_animation(anim_name):
-			return anim_name
-	return ""
-
-
-func _find_animation_player(root: Node) -> AnimationPlayer:
-	if root is AnimationPlayer:
-		return root
-	for child in root.get_children():
-		var found := _find_animation_player(child)
-		if found:
-			return found
-	return null

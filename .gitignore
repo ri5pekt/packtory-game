@@ -22,3 +22,7 @@ Thumbs.db
 /tools_*.uid
 /_*.png
 /_*.png.import
+
+# Python / Blender backups
+__pycache__/
+*.blend[0-9]

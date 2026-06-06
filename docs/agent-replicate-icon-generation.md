@@ -214,7 +214,7 @@ print('OK')
    (e.g. `go_here`, `take`, `put`). Icons load automatically via `IconRegistry.action_icon(id)`.
 
 2. **Product icon** — id must match `ProductCatalog.PRODUCTS` key  
-   (e.g. `book`, `mouse`). Used by inventory UI and shelf labels.
+   (e.g. `headphones`, `mouse`). Used by inventory UI and shelf labels.
 
 3. **No code change needed** if `{id}.png` exists and id matches.
 

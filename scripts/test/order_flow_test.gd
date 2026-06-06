@@ -10,6 +10,7 @@ func _init() -> void:
 	var failed := 0
 	failed += _assert("orderable ids exclude package", _test_orderable_ids())
 	failed += _assert("random orders fit capacity", _test_random_order_capacity())
+	failed += _assert("day 1 orders favor one product", _test_day_one_order_simplicity())
 	failed += _assert("fulfillment rejects package in hand", _test_package_blocks_fulfill())
 	failed += _assert("orders_match is symmetric", _test_orders_match())
 	failed += _assert("partial inventory fails", _test_partial_inventory())
@@ -33,7 +34,7 @@ func _assert(label: String, ok: bool) -> int:
 
 func _test_orderable_ids() -> bool:
 	var ids: Array = ProductCatalogScript.orderable_product_ids()
-	return not ids.has("package") and ids.size() == 3
+	return not ids.has("package") and ids.size() >= 3
 
 
 func _test_random_order_capacity() -> bool:
@@ -48,26 +49,44 @@ func _test_random_order_capacity() -> bool:
 	return true
 
 
+func _test_day_one_order_simplicity() -> bool:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2026
+	var one_product := 0
+	var two_products := 0
+	var three_plus := 0
+	for _i in range(500):
+		var order: Dictionary = ProductCatalogScript.random_order(rng, [], 1)
+		var kinds := order.size()
+		if kinds <= 1:
+			one_product += 1
+		elif kinds == 2:
+			two_products += 1
+		else:
+			three_plus += 1
+	return one_product >= 350 and two_products <= 120 and three_plus <= 40
+
+
 func _test_package_blocks_fulfill() -> bool:
-	var order := {"book": 1}
-	var inv := ["package", "book"]
+	var order := {"headphones": 1}
+	var inv := ["package", "headphones"]
 	return not ProductCatalogScript.inventory_fulfills_order(inv, order)
 
 
 func _test_orders_match() -> bool:
-	var a := {"book": 2, "mouse": 1}
-	var b := {"mouse": 1, "book": 2}
-	var c := {"book": 1, "mouse": 1}
+	var a := {"headphones": 2, "mouse": 1}
+	var b := {"mouse": 1, "headphones": 2}
+	var c := {"headphones": 1, "mouse": 1}
 	return ProductCatalogScript.orders_match(a, b) and not ProductCatalogScript.orders_match(a, c)
 
 
 func _test_partial_inventory() -> bool:
-	var order := {"book": 2}
-	var inv := ["book"]
+	var order := {"headphones": 2}
+	var inv := ["headphones"]
 	return not ProductCatalogScript.inventory_fulfills_order(inv, order)
 
 
 func _test_exact_inventory() -> bool:
-	var order := {"book": 2, "mouse": 1}
-	var inv := ["book", "book", "mouse"]
+	var order := {"headphones": 2, "mouse": 1}
+	var inv := ["headphones", "headphones", "mouse"]
 	return ProductCatalogScript.inventory_fulfills_order(inv, order)

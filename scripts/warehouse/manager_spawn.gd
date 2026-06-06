@@ -1,19 +1,21 @@
 extends Node3D
 
-const WORKER_SCENE := preload("res://scenes/worker/worker.tscn")
+## Spawns the default manager worker when no roster exists yet.
 
-var _grid: WarehouseGrid
+const WorkerHireManagerScript = preload("res://scripts/gameplay/worker_hire_manager.gd")
 
 
 func _ready() -> void:
-	_grid = get_node("/root/GridService") as WarehouseGrid
-	_spawn_manager()
+	add_to_group("worker_spawn")
+	call_deferred("_ensure_default_manager")
 
 
-func _spawn_manager() -> void:
-	var manager: Worker = WORKER_SCENE.instantiate()
-	manager.name = "Manager"
-	# Work zone, west of the queue lane and its rails.
-	manager.position = _grid.cell_to_world(Vector2i(13, 16))
-	manager.rotation_degrees.y = 180.0
-	add_child(manager)
+func _ensure_default_manager() -> void:
+	if get_tree().get_nodes_in_group("workers").size() > 0:
+		return
+	var save := get_node_or_null("/root/SaveManager")
+	if save != null and save.has_method("is_loading_save") and save.is_loading_save():
+		return
+	var hire_manager := get_node_or_null("/root/WorkerHireManager")
+	if hire_manager != null and hire_manager.has_method("spawn_default_manager"):
+		hire_manager.spawn_default_manager()

@@ -1,7 +1,8 @@
-[gd_scene load_steps=15 format=3 uid="uid://bqx7warehouse"]
+[gd_scene load_steps=20 format=3 uid="uid://bqx7warehouse"]
 
 [ext_resource type="Script" path="res://scripts/warehouse/warehouse.gd" id="1_warehouse"]
 [ext_resource type="Script" path="res://scripts/warehouse/grid_floor.gd" id="2_grid_floor"]
+[ext_resource type="Script" path="res://scripts/warehouse/grid_tile_debug_overlay.gd" id="2b_tile_debug"]
 [ext_resource type="Script" path="res://scripts/warehouse/grass_decorations.gd" id="9_grass_deco"]
 [ext_resource type="Script" path="res://scripts/warehouse/road_traffic.gd" id="8_traffic"]
 [ext_resource type="Script" path="res://scripts/warehouse/sidewalk_pedestrians.gd" id="11_pedestrians"]
@@ -13,6 +14,11 @@
 [ext_resource type="Script" path="res://scripts/warehouse/packing_table_spawn.gd" id="13_packing"]
 [ext_resource type="Script" path="res://scripts/warehouse/queue_area_spawn.gd" id="14_queue_area"]
 [ext_resource type="Script" path="res://scripts/warehouse/loading_dock.gd" id="15_dock"]
+[ext_resource type="Script" path="res://scripts/warehouse/reception_table_spawn.gd" id="16_reception"]
+[ext_resource type="Script" path="res://scripts/warehouse/computer_workstation_spawn.gd" id="17_workstation"]
+[ext_resource type="Script" path="res://scripts/warehouse/outbound_delivery_vehicle_spawn.gd" id="18_outbound_van"]
+[ext_resource type="Script" path="res://scripts/warehouse/day_night_lighting.gd" id="19_daynight"]
+[ext_resource type="Script" path="res://scripts/warehouse/street_lamp_controller.gd" id="20_streetlamps"]
 
 [sub_resource type="Environment" id="Environment_sky"]
 background_mode = 1
@@ -26,6 +32,9 @@ script = ExtResource("1_warehouse")
 
 [node name="GridFloor" type="Node3D" parent="."]
 script = ExtResource("2_grid_floor")
+
+[node name="GridTileDebugOverlay" type="Node3D" parent="."]
+script = ExtResource("2b_tile_debug")
 
 [node name="GrassDecorations" type="Node3D" parent="."]
 script = ExtResource("9_grass_deco")
@@ -45,6 +54,9 @@ script = ExtResource("5_shelves")
 [node name="QueueArea" type="Node3D" parent="."]
 script = ExtResource("14_queue_area")
 
+[node name="ReceptionTableSpawn" type="Node3D" parent="."]
+script = ExtResource("16_reception")
+
 [node name="WarehouseNavigation" type="Node" parent="."]
 script = ExtResource("6_navigation")
 
@@ -60,6 +72,12 @@ script = ExtResource("15_dock")
 [node name="PackingTableSpawn" type="Node3D" parent="."]
 script = ExtResource("13_packing")
 
+[node name="ComputerWorkstationSpawn" type="Node3D" parent="."]
+script = ExtResource("17_workstation")
+
+[node name="OutboundDeliveryVehicleSpawn" type="Node3D" parent="."]
+script = ExtResource("18_outbound_van")
+
 [node name="Sun" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 12, 0)
 light_color = Color(1, 0.972549, 0.941176, 1)
@@ -68,3 +86,9 @@ shadow_enabled = false
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_sky")
+
+[node name="DayNightLighting" type="Node3D" parent="."]
+script = ExtResource("19_daynight")
+
+[node name="StreetLampController" type="Node" parent="DayNightLighting"]
+script = ExtResource("20_streetlamps")

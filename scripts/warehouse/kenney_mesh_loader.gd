@@ -39,6 +39,64 @@ static func mesh_with_material(mesh: Mesh, material: Material) -> Mesh:
 	return copy
 
 
+static func mesh_clipped_to_max_y(source: Mesh, max_y: float) -> Mesh:
+	if source == null or source.get_surface_count() == 0:
+		return source
+
+	var arrays: Array = source.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	if vertices.is_empty():
+		return source
+
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	if indices.is_empty():
+		for i in range(0, vertices.size(), 3):
+			if _triangle_within_y(vertices, i, i + 1, i + 2, max_y):
+				_add_triangle(st, vertices, normals, uvs, i, i + 1, i + 2)
+	else:
+		for i in range(0, indices.size(), 3):
+			var i0 := indices[i]
+			var i1 := indices[i + 1]
+			var i2 := indices[i + 2]
+			if (
+				vertices[i0].y <= max_y
+				and vertices[i1].y <= max_y
+				and vertices[i2].y <= max_y
+			):
+				_add_triangle(st, vertices, normals, uvs, i0, i1, i2)
+
+	var clipped := st.commit()
+	if clipped.get_surface_count() == 0:
+		return source
+	return clipped
+
+
+static func _triangle_within_y(vertices: PackedVector3Array, i0: int, i1: int, i2: int, max_y: float) -> bool:
+	return vertices[i0].y <= max_y and vertices[i1].y <= max_y and vertices[i2].y <= max_y
+
+
+static func _add_triangle(
+	st: SurfaceTool,
+	vertices: PackedVector3Array,
+	normals: PackedVector3Array,
+	uvs: PackedVector2Array,
+	i0: int,
+	i1: int,
+	i2: int
+) -> void:
+	for index in [i0, i1, i2]:
+		if not normals.is_empty() and index < normals.size():
+			st.set_normal(normals[index])
+		if not uvs.is_empty() and index < uvs.size():
+			st.set_uv(uvs[index])
+		st.add_vertex(vertices[index])
+
+
 static func _resolve_material(mesh_instance: MeshInstance3D) -> Material:
 	var mesh := mesh_instance.mesh
 	if mesh and mesh.get_surface_count() > 0:

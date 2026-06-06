@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://cdjf831pe7fcq"
-path="res://.godot/imported/packtory_warehouse.blend-a44b88fb58ac640382a2ba3fd30cf56d.scn"
+valid=false
 
 [deps]
 
 source_file="res://blender/packtory_warehouse.blend"
-dest_files=["res://.godot/imported/packtory_warehouse.blend-a44b88fb58ac640382a2ba3fd30cf56d.scn"]
 
 [params]
 

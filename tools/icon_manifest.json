@@ -34,16 +34,16 @@
       "prompt": "A simple cartoon clipboard checklist, light cream paper with a brown clip at the top and three short horizontal text lines each with a small green checkmark, flat front view, NO speech bubble, NO background card or frame, just the clipboard, clean and readable at small sizes"
     },
     {
+      "id": "waiting",
+      "prompt": "A chunky cute cartoon hourglass sand timer, big rounded glass bulbs, thick playful wooden or teal frame, bright golden sand with a few bouncy grains falling through the narrow neck, exaggerated proportions like a mobile game emoji, friendly waiting patience icon, front view, bold simple shapes, no realism"
+    },
+    {
       "id": "fulfill_order",
       "prompt": "A closed package box being handed forward with a small checkmark badge, deliver order action icon"
     },
     {
       "id": "pack_order",
       "prompt": "An open packing table with a sealed shipping box and packing tape roll, pack order action icon"
-    },
-    {
-      "id": "player_focus",
-      "prompt": "A top-down cartoon view of a cute warehouse worker character, small orange-haired person seen from above with a simple crosshair or location-pin target circle beneath them, focus-camera action icon, clean and readable at 32px"
     },
     {
       "id": "avatar",

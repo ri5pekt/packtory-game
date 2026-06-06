@@ -1,27 +1,10 @@
 extends Node3D
 
-## Spawns pedestrians on the road-side sidewalks (east-west) and the entrance
-## walkway (north-south), in both directions, so foot traffic moves every way.
+## Spawns decorative pedestrians on the road-side sidewalks (east-west) only.
+## The entrance walkway is reserved for real shoppers spawned by CustomerQueue.
 
 const PedestrianScript = preload("res://scripts/warehouse/sidewalk_pedestrian.gd")
-const CHARACTER_BASE_PATH := (
-	"res://blender/assets/kenney_mini-characters/Models/GLB format/"
-)
-
-const CHARACTER_MODELS := [
-	"character-female-a.glb",
-	"character-female-b.glb",
-	"character-female-c.glb",
-	"character-female-d.glb",
-	"character-female-e.glb",
-	"character-female-f.glb",
-	"character-male-a.glb",
-	"character-male-b.glb",
-	"character-male-c.glb",
-	"character-male-d.glb",
-	"character-male-e.glb",
-	"character-male-f.glb",
-]
+const CharacterCatalogScript = preload("res://scripts/dev/character_catalog.gd")
 
 const MIN_SPAWN_SEC := 2.5
 const MAX_SPAWN_SEC := 7.0
@@ -50,15 +33,11 @@ func _build_routes() -> Array:
 	var y := WarehouseGrid.DECORATIVE_SIDEWALK_SURFACE_Y
 	var x_bounds := _grid.get_decorative_road_x_bounds()
 
-	# East-west road sidewalks (both sides).
+	# East-west road sidewalks (both sides). Do not route through the warehouse
+	# entrance walkway — shoppers use that path exclusively.
 	for side in [0, 1]:
 		var z := _grid.get_decorative_sidewalk_z(side)
 		routes.append({"a": Vector3(x_bounds.x, y, z), "b": Vector3(x_bounds.y, y, z)})
-
-	# North-south entrance walkway.
-	var wx := _grid.get_walkway_x()
-	var z_bounds := _grid.get_walkway_z_bounds()
-	routes.append({"a": Vector3(wx, y, z_bounds.x), "b": Vector3(wx, y, z_bounds.y)})
 
 	return routes
 
@@ -90,8 +69,8 @@ func _spawn_pedestrian() -> void:
 		start = end
 		end = swap
 
-	var model_name: String = CHARACTER_MODELS.pick_random()
-	var character_scene: PackedScene = load(CHARACTER_BASE_PATH + model_name)
+	var model_name: String = CharacterCatalogScript.pick_random_npc_model(null, get_tree())
+	var character_scene: PackedScene = load(CharacterCatalogScript.model_path(model_name))
 	if character_scene == null:
 		push_warning("SidewalkPedestrians: failed to load %s" % model_name)
 		return

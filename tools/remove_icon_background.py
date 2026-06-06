@@ -13,7 +13,10 @@ from pathlib import Path
 
 from PIL import Image
 
+from load_env import load_project_env
+
 ROOT = Path(__file__).resolve().parents[1]
+load_project_env()
 BG_MODEL = "https://api.replicate.com/v1/models/bria/remove-background/predictions"
 
 
@@ -103,7 +106,7 @@ def main() -> int:
 
     token = os.environ.get("REPLICATE_API_TOKEN", "").strip()
     if not token:
-        print("Set REPLICATE_API_TOKEN first.", file=sys.stderr)
+        print("Set REPLICATE_API_TOKEN in .env (see .env.example).", file=sys.stderr)
         return 1
 
     inputs = args.inputs

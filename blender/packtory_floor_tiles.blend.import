@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://do70e8bjpipfm"
-path="res://.godot/imported/packtory_floor_tiles.blend-4fb2925589078d412b0efbc00feb2061.scn"
+valid=false
 
 [deps]
 
 source_file="res://blender/packtory_floor_tiles.blend"
-dest_files=["res://.godot/imported/packtory_floor_tiles.blend-4fb2925589078d412b0efbc00feb2061.scn"]
 
 [params]
 
