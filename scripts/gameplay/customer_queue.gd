@@ -521,11 +521,15 @@ func _build_customer_approach_waypoints() -> Array[Vector3]:
 	var wx := _grid.get_walkway_x()
 	var walkway := _grid.get_walkway_z_bounds()
 	var entry := QueueAreaLayout.get_entry_point()
-	var off_map_z := float(_grid.total_size.y) + 1.5
+	# Match decorative sidewalk traffic: approach along the north road sidewalk
+	# (row 24) from east or west, then turn into the entrance walkway.
+	var north_sidewalk_z := _grid.get_decorative_sidewalk_z(0)
+	var x_bounds := _grid.get_decorative_road_x_bounds()
+	var from_east := _rng.randf() > 0.5
+	var start_x := x_bounds.y if from_east else x_bounds.x
 	return [
-		_grid.world_on_surface(wx, off_map_z),
-		_grid.world_on_surface(wx, _grid.get_decorative_sidewalk_z(1)),
-		_grid.world_on_surface(wx, walkway.y),
+		_grid.world_on_surface(start_x, north_sidewalk_z),
+		_grid.world_on_surface(wx, north_sidewalk_z),
 		_grid.world_on_surface(wx, walkway.x),
 		entry,
 	]

@@ -8,7 +8,7 @@ extends Node3D
 const SHELF_MODEL := "res://blender/assets/kenney_mini-market/Models/GLB format/shelf-end.glb"
 const CLICK_LAYER := 1
 const LEVEL_Y := [0.24, 0.60]   # matched to actual shelf-end surface heights
-const PRODUCT_Z := 0.04          # slightly inside the shelf bay (faces +Z at yaw=0)
+const PRODUCT_Z := -0.08         # set back from the shelf lip (faces +Z at yaw=0)
 const APPROACH_Z := 0.85
 const FACE_Z := 0.15
 const COLS_PER_LEVEL := 3
@@ -68,11 +68,17 @@ func get_ignore_cells() -> Array[Vector2i]:
 
 
 func preview_placement(anchor_cell: Vector2i, yaw_deg: float) -> void:
+	_ensure_grid()
+	if _grid == null:
+		return
 	position = _grid.cell_to_world(anchor_cell)
 	rotation_degrees.y = yaw_deg
 
 
 func apply_placement(anchor_cell: Vector2i, yaw_deg: float) -> void:
+	_ensure_grid()
+	if _grid == null:
+		return
 	_release_grid_obstacle()
 	_anchor_cell = anchor_cell
 	setup(_grid.cell_to_world(anchor_cell), yaw_deg)
@@ -88,7 +94,7 @@ func _ensure_grid() -> void:
 		return
 	if is_inside_tree():
 		_grid = get_tree().root.get_node_or_null("GridService") as WarehouseGrid
-	if _grid == null and Engine.is_editor_hint():
+	if _grid == null:
 		_grid = get_node_or_null("/root/GridService") as WarehouseGrid
 
 

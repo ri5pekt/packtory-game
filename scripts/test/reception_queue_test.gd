@@ -131,6 +131,6 @@ func _test_slot_spacing_one_meter() -> bool:
 	var s1 := QueueAreaLayoutScript.get_slot(1)
 	var s2 := QueueAreaLayoutScript.get_slot(2)
 	return (
-		is_equal_approx(s0.distance_to(s1), 1.15)
-		and is_equal_approx(s1.distance_to(s2), 1.15)
+		is_equal_approx(s0.distance_to(s1), ReceptionTableScript.SLOT_SPACING)
+		and is_equal_approx(s1.distance_to(s2), ReceptionTableScript.SLOT_SPACING)
 	)

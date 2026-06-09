@@ -1,16 +1,15 @@
 class_name LoadingDock
 extends Node3D
 
-## Opening delivery phase: a truck drives in from the main road, parks at the east
-## dock, unloads three labelled product boxes, then drives away. Boxes stay until
-## the player picks them up. The customer queue starts after boxes are cleared
-## (or a fallback timer).
+## Opening delivery phase: a truck drives in from the main road, reverses into the
+## marked drop zone, unloads three labelled product boxes, then drives away.
 
 const DeliveryBoxScript = preload("res://scripts/gameplay/delivery_box.gd")
 const EquipmentDeliveryBoxScript = preload(
 	"res://scripts/gameplay/equipment_delivery_box.gd"
 )
 const SaveManagerScript = preload("res://scripts/gameplay/save_manager.gd")
+const LoadingDockDropZoneScript = preload("res://scripts/warehouse/loading_dock_drop_zone.gd")
 const TRUCK_MODEL := "res://blender/assets/kenney_car-kit/Models/GLB format/truck.glb"
 const TRUCK_SCALE := 0.5
 
@@ -20,33 +19,46 @@ const TRUCK_SCALE := 0.5
 const TRUCK_YAW_WEST := 270.0
 const TRUCK_YAW_NORTH := 180.0
 const TRUCK_YAW_EAST := 90.0
+const TRUCK_YAW_SOUTH := 0.0
 
-const TRUCK_PARK_CELL := Vector2i(WarehouseGrid.DOCK_EAST_COL + 1, 16)
+## Cell path: (33,25) → (27,25) → turn north → (27,18) → reverse west into drop zone.
+const TRUCK_SPAWN_CELL := Vector2i(33, 25)
+const TRUCK_JUNCTION_CELL := Vector2i(27, 25)
+const TRUCK_SPUR_END_CELL := Vector2i(27, 18)
+const TRUCK_UNLOAD_CELL := Vector2i(26, 18)
+
+const DROP_ZONE_CELLS := [
+	Vector2i(24, 18),
+	Vector2i(24, 17),
+	Vector2i(25, 18),
+	Vector2i(25, 17),
+]
 
 ## Animation timings
-const LEG_MAIN_ROAD_SEC := 2.0   # driving along the main road to the junction
-const LEG_CORNER_SEC := 1.0      # sweeping through the corner arc + rotation
-const LEG_SPUR_SEC := 2.0        # driving up the spur to the dock
-const LEG_PARK_SEC := 0.5        # final slow crawl into the parking spot
-const UNLOAD_PAUSE_SEC := 1.2    # brief stop at dock before driving away
+const LEG_MAIN_ROAD_SEC := 2.0   # west along the main road (33,25) → (27,25)
+const LEG_CORNER_SEC := 1.0      # 90° turn at the junction
+const LEG_SPUR_SEC := 2.0        # north up the spur to (27,18)
+const LEG_TURN_SEC := 0.6        # face east before backing into the drop zone
+const LEG_REVERSE_SEC := 1.2     # reverse west into the marked tiles
+const UNLOAD_PAUSE_SEC := 1.2    # brief stop while boxes appear
 
 const BOXES := [
 	{
 		"id": "headphones",
 		"qty": DeliveryBoxScript.UNITS_PER_BOX,
-		"cell": Vector2i(24, 15),
+		"cell": Vector2i(24, 18),
 		"label_offset": Vector3(-0.12, 0.0, 0.0),
 	},
 	{
 		"id": "hair_dryer",
 		"qty": DeliveryBoxScript.UNITS_PER_BOX,
-		"cell": Vector2i(25, 15),  # moved from (25,14) which is the van's reserve spot
+		"cell": Vector2i(25, 18),
 		"label_offset": Vector3(0.14, 0.12, 0.0),
 	},
 	{
 		"id": "mouse",
 		"qty": DeliveryBoxScript.UNITS_PER_BOX,
-		"cell": Vector2i(25, 16),
+		"cell": Vector2i(24, 17),
 		"label_offset": Vector3(0.14, 0.0, 0.08),
 	},
 ]
@@ -56,19 +68,8 @@ const OUTBOUND_VAN_RESERVE_CELLS := [
 	Vector2i(WarehouseGrid.DOCK_WEST_COL, WarehouseGrid.DOCK_NORTH_ROW - 1),
 	Vector2i(WarehouseGrid.DOCK_WEST_COL + 1, WarehouseGrid.DOCK_NORTH_ROW - 1),
 ]
-const EQUIPMENT_DROP_CELLS := [
-	Vector2i(24, 17),
-	Vector2i(25, 17),
-	Vector2i(23, 18),
-]
-const PRODUCT_REORDER_DROP_CELLS := [
-	Vector2i(23, 15),
-	Vector2i(23, 16),
-	Vector2i(23, 17),
-	Vector2i(24, 17),
-	Vector2i(25, 17),
-	Vector2i(23, 18),
-]
+const EQUIPMENT_DROP_CELLS := DROP_ZONE_CELLS
+const PRODUCT_REORDER_DROP_CELLS := DROP_ZONE_CELLS
 
 var _grid: WarehouseGrid
 var _boxes: Array[DeliveryBox] = []
@@ -76,12 +77,21 @@ var _equipment_boxes: Array = []
 var _truck: Node3D
 var _truck_departed := false
 var _queue_started := false
+var _drop_zone: LoadingDockDropZone
 
 
 func _ready() -> void:
 	add_to_group("loading_dock")
 	_grid = get_node("/root/GridService") as WarehouseGrid
+	_build_drop_zone_marker()
 	_connect_day_start()
+
+
+func _build_drop_zone_marker() -> void:
+	_drop_zone = LoadingDockDropZoneScript.new()
+	_drop_zone.name = "DropZone"
+	add_child(_drop_zone)
+	_drop_zone.setup(_grid, DROP_ZONE_CELLS)
 
 
 func _connect_day_start() -> void:
@@ -100,7 +110,6 @@ func _start_delivery() -> void:
 	if save and save.has_method("is_loading_save") and save.is_loading_save():
 		return
 	_spawn_truck()
-	_spawn_boxes()
 
 	var fallback := Timer.new()
 	fallback.one_shot = true
@@ -196,8 +205,7 @@ func _spawn_equipment_truck(delivery: Dictionary) -> void:
 	mesh.scale = Vector3.ONE * TRUCK_SCALE
 	truck.add_child(mesh)
 
-	var park := _grid.cell_to_world(TRUCK_PARK_CELL)
-	var route := _truck_route_inbound(park)
+	var route := _truck_route()
 	_tween_truck_inbound(
 		truck,
 		route,
@@ -205,7 +213,7 @@ func _spawn_equipment_truck(delivery: Dictionary) -> void:
 		UNLOAD_PAUSE_SEC * 0.5,
 		func() -> void:
 			_spawn_equipment_box(delivery)
-			truck.queue_free()
+			_tween_truck_outbound(truck, route, truck.queue_free)
 	)
 
 
@@ -242,8 +250,7 @@ func _spawn_product_reorder_truck(delivery: Dictionary) -> void:
 	mesh.scale = Vector3.ONE * TRUCK_SCALE
 	truck.add_child(mesh)
 
-	var park := _grid.cell_to_world(TRUCK_PARK_CELL)
-	var route := _truck_route_inbound(park)
+	var route := _truck_route()
 	_tween_truck_inbound(
 		truck,
 		route,
@@ -251,7 +258,7 @@ func _spawn_product_reorder_truck(delivery: Dictionary) -> void:
 		UNLOAD_PAUSE_SEC * 0.5,
 		func() -> void:
 			_spawn_product_reorder_box(delivery)
-			truck.queue_free()
+			_tween_truck_outbound(truck, route, truck.queue_free)
 	)
 
 
@@ -403,6 +410,7 @@ func _clear_boxes() -> void:
 func _spawn_truck() -> void:
 	var scene: PackedScene = load(TRUCK_MODEL)
 	if scene == null:
+		_spawn_boxes()
 		return
 
 	_truck = Node3D.new()
@@ -412,14 +420,15 @@ func _spawn_truck() -> void:
 	mesh.scale = Vector3.ONE * TRUCK_SCALE
 	_truck.add_child(mesh)
 
-	var park := _grid.cell_to_world(TRUCK_PARK_CELL)
-	var route := _truck_route_inbound(park)
+	var route := _truck_route()
 	_tween_truck_inbound(
 		_truck,
 		route,
 		1.0,
 		UNLOAD_PAUSE_SEC,
-		_depart_truck
+		func() -> void:
+			_spawn_boxes()
+			_depart_truck()
 	)
 
 
@@ -427,30 +436,27 @@ func _depart_truck() -> void:
 	if _truck_departed or not is_instance_valid(_truck):
 		return
 	_truck_departed = true
-	var route := _truck_route_outbound()
+	var route := _truck_route()
 	_tween_truck_outbound(_truck, route, _truck.queue_free)
 
 
-func _truck_route_inbound(park: Vector3) -> Dictionary:
-	var junction := _grid.get_dock_road_junction_world()
-	var road_y := junction.y
+func _truck_route() -> Dictionary:
 	return {
-		"spawn": Vector3(float(_grid.total_size.x) + 4.0, road_y, junction.z),
-		"corner_entry": Vector3(junction.x + 0.5, road_y, junction.z),
-		"corner_exit": Vector3(junction.x, road_y, junction.z - 1.0),
-		"spur_end": Vector3(junction.x, road_y, park.z + 1.0),
-		"park": park,
+		"spawn": _road_cell_world(TRUCK_SPAWN_CELL),
+		"junction": _road_cell_world(TRUCK_JUNCTION_CELL),
+		"spur_end": _dock_cell_world(TRUCK_SPUR_END_CELL),
+		"unload": _dock_cell_world(TRUCK_UNLOAD_CELL),
 	}
 
 
-func _truck_route_outbound() -> Dictionary:
-	var junction := _grid.get_dock_road_junction_world()
-	var road_y := junction.y
-	return {
-		"corner_entry": Vector3(junction.x, road_y, junction.z - 1.0),
-		"corner_exit": Vector3(junction.x + 0.5, road_y, junction.z),
-		"road_exit": Vector3(float(_grid.total_size.x) + 4.0, road_y, junction.z),
-	}
+func _road_cell_world(cell: Vector2i) -> Vector3:
+	var world := _grid.cell_to_world(cell)
+	world.y = WarehouseGrid.DECORATIVE_ROAD_SURFACE_Y
+	return world
+
+
+func _dock_cell_world(cell: Vector2i) -> Vector3:
+	return _grid.cell_to_world(cell)
 
 
 func _tween_truck_inbound(
@@ -464,20 +470,21 @@ func _tween_truck_inbound(
 	truck.rotation_degrees.y = TRUCK_YAW_WEST
 
 	var tween := create_tween()
-	# Leg 1 — west along the main road.
-	tween.tween_property(truck, "position", route["corner_entry"], LEG_MAIN_ROAD_SEC * time_scale) \
+	# Leg 1 — west along the main road (33,25) → (27,25).
+	tween.tween_property(truck, "position", route["junction"], LEG_MAIN_ROAD_SEC * time_scale) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	# Leg 2 — turn north at the junction (move + rotate together, not during leg 1).
-	tween.tween_property(truck, "position", route["corner_exit"], LEG_CORNER_SEC * time_scale) \
+	# Leg 2 — turn north at the junction and drive to (27,18).
+	tween.tween_property(truck, "position", route["spur_end"], LEG_SPUR_SEC * time_scale) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tween.parallel().tween_property(
 		truck, "rotation_degrees:y", TRUCK_YAW_NORTH, LEG_CORNER_SEC * time_scale
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	# Leg 3 — north up the spur.
-	tween.tween_property(truck, "position", route["spur_end"], LEG_SPUR_SEC * time_scale) \
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	# Leg 4 — final park.
-	tween.tween_property(truck, "position", route["park"], LEG_PARK_SEC) \
+	# Leg 3 — face east so the next move reads as reversing into the drop zone.
+	tween.tween_property(
+		truck, "rotation_degrees:y", TRUCK_YAW_EAST, LEG_TURN_SEC * time_scale
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	# Leg 4 — reverse west into the marked tiles.
+	tween.tween_property(truck, "position", route["unload"], LEG_REVERSE_SEC * time_scale) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	if unload_pause > 0.0:
 		tween.tween_interval(unload_pause)
@@ -487,17 +494,20 @@ func _tween_truck_inbound(
 
 func _tween_truck_outbound(truck: Node3D, route: Dictionary, on_complete: Callable) -> void:
 	var tween := create_tween()
-	# Leg 1 — back down the spur.
-	tween.tween_property(truck, "position", route["corner_entry"], LEG_SPUR_SEC) \
+	# Leg 1 — pull forward east back to the spur mouth.
+	tween.tween_property(truck, "position", route["spur_end"], LEG_REVERSE_SEC) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
-	# Leg 2 — turn east onto the main road.
-	tween.tween_property(truck, "position", route["corner_exit"], LEG_CORNER_SEC) \
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tween.parallel().tween_property(
+	# Leg 2 — turn south and drive back to the main road junction.
+	tween.tween_property(
+		truck, "rotation_degrees:y", TRUCK_YAW_SOUTH, LEG_TURN_SEC
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(truck, "position", route["junction"], LEG_SPUR_SEC) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	# Leg 3 — turn east and leave along the main road.
+	tween.tween_property(
 		truck, "rotation_degrees:y", TRUCK_YAW_EAST, LEG_CORNER_SEC
 	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	# Leg 3 — drive east off-screen.
-	tween.tween_property(truck, "position", route["road_exit"], LEG_MAIN_ROAD_SEC) \
+	tween.tween_property(truck, "position", route["spawn"], LEG_MAIN_ROAD_SEC) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	if on_complete.is_valid():
 		tween.tween_callback(on_complete)

@@ -40,7 +40,7 @@ static func product_icon(product_id: String) -> Texture2D:
 	# Procedural fallbacks for products without a PNG asset
 	match product_id:
 		"smart_watch":
-			return _status_fallback("__smart_watch__", _draw_smart_watch_icon)
+			return _status_fallback("__smart_watch_v2__", _draw_smart_watch_icon)
 	return null
 
 
@@ -283,33 +283,48 @@ static func _draw_clean_icon(img: Image, size: int) -> void:
 
 
 static func _draw_smart_watch_icon(img: Image, size: int) -> void:
-	var band := Color(0.28, 0.60, 0.72)
-	var body := Color(0.22, 0.48, 0.62)
-	var screen := Color(0.68, 0.92, 1.0)
 	var cx := size / 2
-	# Band top and bottom
-	for y in range(8, 18):
-		for x in range(cx - 6, cx + 7):
-			img.set_pixel(x, y, band)
-	for y in range(46, 56):
-		for x in range(cx - 6, cx + 7):
-			img.set_pixel(x, y, band)
-	# Watch body (rounded rect)
-	for y in range(16, 48):
-		for x in range(cx - 12, cx + 13):
-			var dist_x := absf(float(x - cx)) - 8.0
-			var dist_y := absf(float(y - 32)) - 12.0
-			var corner := maxf(dist_x, 0.0) * maxf(dist_x, 0.0) + maxf(dist_y, 0.0) * maxf(dist_y, 0.0)
-			if corner < 16.0:
-				img.set_pixel(x, y, body)
+	var strap := Color(0.30, 0.24, 0.38)
+	var case_col := Color(0.46, 0.34, 0.58)
+	var bezel := Color(0.62, 0.50, 0.74)
+	var screen := Color(0.10, 0.11, 0.16)
+	var accent := Color(0.96, 0.42, 0.52)
+	var digits := Color(0.72, 0.88, 1.0)
+	# Straps
+	for y in range(6, 17):
+		for x in range(cx - 5, cx + 6):
+			img.set_pixel(x, y, strap)
+	for y in range(47, 58):
+		for x in range(cx - 5, cx + 6):
+			img.set_pixel(x, y, strap)
+	# Case
+	for y in range(15, 49):
+		for x in range(cx - 13, cx + 14):
+			var edge_x := maxf(absf(float(x - cx)) - 9.0, 0.0)
+			var edge_y := maxf(absf(float(y - 32)) - 13.0, 0.0)
+			if edge_x * edge_x + edge_y * edge_y < 20.0:
+				var on_bezel := absf(float(x - cx)) > 8.5 or absf(float(y - 32)) > 11.5
+				img.set_pixel(x, y, bezel if on_bezel else case_col)
 	# Screen
-	for y in range(22, 42):
-		for x in range(cx - 8, cx + 9):
+	for y in range(21, 43):
+		for x in range(cx - 9, cx + 10):
 			img.set_pixel(x, y, screen)
-	# Clock hands
-	_draw_line(img, Vector2i(cx, 32), Vector2i(cx, 26), band)
-	_draw_line(img, Vector2i(cx, 32), Vector2i(cx + 4, 35), band)
-	img.set_pixel(cx, 32, body)
+	# Heart rate accent
+	for y in range(24, 30):
+		for x in range(cx - 7, cx - 1):
+			var t := float(x - (cx - 7)) / 5.0
+			var wave_y := 27 + int(sin(t * PI * 1.4) * 2.0)
+			if y == wave_y or y == wave_y + 1:
+				img.set_pixel(x, y, accent)
+	# Simple digital time
+	for y in range(33, 39):
+		for x in range(cx - 1, cx + 2):
+			img.set_pixel(x, y, digits)
+	for x in range(cx + 3, cx + 8):
+		img.set_pixel(x, 35, digits)
+		img.set_pixel(x, 36, digits)
+	for y in range(34, 37):
+		img.set_pixel(cx + 2, y, digits)
 
 
 static func _draw_truck_icon(img: Image, size: int) -> void:

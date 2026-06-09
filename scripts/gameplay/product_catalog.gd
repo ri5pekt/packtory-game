@@ -23,11 +23,11 @@ const PRODUCTS := {
 	"mouse": {
 		"name": "Computer Mouse",
 		"color": Color(0.40, 0.74, 0.45),
-		"box_size": Vector3(0.20, 0.12, 0.11),
+		"box_size": Vector3(0.20, 0.16, 0.11),
 	},
 	"smart_watch": {
 		"name": "Smart Watch",
-		"color": Color(0.34, 0.78, 0.88),
+		"color": Color(0.54, 0.38, 0.72),
 		"box_size": Vector3(0.16, 0.16, 0.12),
 	},
 	"package": {

@@ -9,7 +9,7 @@ const MODEL := (
 )
 
 const MODEL_SCALE := 1.05
-const SLOT_SPACING := 1.15
+const SLOT_SPACING := 0.78
 const MAX_QUEUE := 6
 const EXIT_LANE_OFFSET := 1.0
 const CLICK_LAYER := 1
@@ -67,6 +67,7 @@ func get_ignore_cells() -> Array[Vector2i]:
 
 
 func preview_placement(anchor_cell: Vector2i, yaw_deg: float) -> void:
+	_ensure_grid()
 	if _grid == null:
 		return
 	position = _grid.cell_to_world(anchor_cell)
@@ -74,6 +75,7 @@ func preview_placement(anchor_cell: Vector2i, yaw_deg: float) -> void:
 
 
 func apply_placement(anchor_cell: Vector2i, yaw_deg: float) -> void:
+	_ensure_grid()
 	if _grid == null:
 		return
 	_release_body_obstacle()
@@ -194,7 +196,7 @@ func _ensure_grid() -> void:
 		return
 	if is_inside_tree():
 		_grid = get_tree().root.get_node_or_null("GridService") as WarehouseGrid
-	if _grid == null and Engine.is_editor_hint():
+	if _grid == null:
 		_grid = get_node_or_null("/root/GridService") as WarehouseGrid
 
 

@@ -71,11 +71,17 @@ func get_ignore_cells() -> Array[Vector2i]:
 
 
 func preview_placement(anchor_cell: Vector2i, yaw_deg: float) -> void:
+	_ensure_grid()
+	if _grid == null:
+		return
 	position = _grid.cell_to_world(anchor_cell)
 	rotation_degrees.y = yaw_deg
 
 
 func apply_placement(anchor_cell: Vector2i, yaw_deg: float) -> void:
+	_ensure_grid()
+	if _grid == null:
+		return
 	_release_grid_obstacle()
 	_anchor_cell = anchor_cell
 	setup(_grid.cell_to_world(anchor_cell), yaw_deg)
@@ -91,7 +97,7 @@ func _ensure_grid() -> void:
 		return
 	if is_inside_tree():
 		_grid = get_tree().root.get_node_or_null("GridService") as WarehouseGrid
-	if _grid == null and Engine.is_editor_hint():
+	if _grid == null:
 		_grid = get_node_or_null("/root/GridService") as WarehouseGrid
 
 

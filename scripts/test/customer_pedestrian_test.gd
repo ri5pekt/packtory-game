@@ -26,7 +26,7 @@ func _run_tests() -> void:
 	failed += _assert("approaching shoppers are not warehouse customers", _test_approach_not_identifiable())
 	failed += _assert("admission links order to queue customer", await _test_admission_links_order())
 	failed += _assert("admission keeps pedestrian position", await _test_admission_keeps_position())
-	failed += _assert("approach path starts off the lot", await _test_approach_starts_off_map())
+	failed += _assert("approach path starts off the lot edge", await _test_approach_starts_off_map())
 	failed += _assert("decorative pedestrians never join queue", await _test_decorative_never_joins_queue())
 	failed += _assert("decorative routes avoid entrance walkway", await _test_decorative_routes_avoid_walkway())
 	failed += _assert("warehouse customer only identifiable after entry", _test_entry_gate())
@@ -177,10 +177,20 @@ func _test_approach_starts_off_map() -> bool:
 	await process_frame
 	var waypoints: Array[Vector3] = queue._build_customer_approach_waypoints()
 	queue.queue_free()
-	if waypoints.is_empty():
+	if waypoints.size() < 3:
 		return false
 	var grid: WarehouseGrid = root.get_node("GridService") as WarehouseGrid
-	return waypoints[0].z > float(grid.total_size.y)
+	var x_bounds := grid.get_decorative_road_x_bounds()
+	var north_sidewalk_z := grid.get_decorative_sidewalk_z(0)
+	var start := waypoints[0]
+	var corner := waypoints[1]
+	var on_north_sidewalk := is_equal_approx(start.z, north_sidewalk_z)
+	var off_lot_x := start.x <= x_bounds.x or start.x >= x_bounds.y
+	var turns_at_walkway := is_equal_approx(corner.x, grid.get_walkway_x()) and is_equal_approx(
+		corner.z,
+		north_sidewalk_z
+	)
+	return on_north_sidewalk and off_lot_x and turns_at_walkway
 
 
 func _test_decorative_never_joins_queue() -> bool:

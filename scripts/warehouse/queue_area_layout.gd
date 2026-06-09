@@ -7,7 +7,7 @@ extends RefCounted
 const FLOOR_Y := WarehouseGrid.WAREHOUSE_FLOOR_SURFACE_Y
 const LEGACY_QUEUE_X := 16.5
 const LEGACY_QUEUE_FRONT_Z := 16.5
-const QUEUE_SLOT_SPACING := 1.15
+const QUEUE_SLOT_SPACING := 0.78
 const MAX_QUEUE := 6
 const LEGACY_ENTRY_Z := 21.0
 const LEGACY_EXIT_LANE_X := 17.5
